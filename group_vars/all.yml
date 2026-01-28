@@ -1,0 +1,140 @@
+---
+target_user: bastos
+target_user_home: "/home/{{ target_user }}"
+brew_prefix: /home/linuxbrew/.linuxbrew
+
+apt_arch: >-
+  {{ {
+    'x86_64': 'amd64',
+    'aarch64': 'arm64',
+    'armv7l': 'armhf',
+    'armv8l': 'arm64'
+  }.get(ansible_facts['architecture'], ansible_facts['architecture']) }}
+
+docker_apt_release: >-
+  {{ {
+    'bionic': 'bionic',
+    'focal': 'focal',
+    'jammy': 'jammy',
+    'noble': 'noble'
+  }.get(ansible_facts['distribution_release'], 'jammy') }}
+
+ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK5YDl9pSsedMatSLLjbOgMVutCRRnWgNHJwun3ghQGn code@tiagobastos.me"
+
+base_packages:
+  - ca-certificates
+  - curl
+  - file
+  - git
+  - gnupg
+  - openssh-server
+  - procps
+  - ufw
+  - vim
+  - wget
+  - build-essential
+  - apt-transport-https
+  - bash-completion
+  - bat
+  - btop
+  - fd-find
+  - fzf
+  - htop
+  - jq
+  - locales
+  - lsb-release
+  - mc
+  - neofetch
+  - ripgrep
+  - software-properties-common
+  - tree
+  - unzip
+  - ffmpeg
+  - tmux
+  - autoconf
+  - bison
+  - libdb-dev
+  - libffi-dev
+  - libgdbm-dev
+  - libgmp-dev
+  - libjemalloc-dev
+  - liblzma-dev
+  - libncurses5-dev
+  - libncursesw5-dev
+  - libreadline-dev
+  - libssl-dev
+  - libsqlite3-dev
+  - libyaml-dev
+  - zlib1g-dev
+
+third_party_packages:
+  - cursor
+  - gh
+  - google-chrome-stable
+  - antigravity
+  - code
+  - gum
+  - vhs
+  - glow
+
+docker_ce_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+apt_repos:
+  - name: docker
+    key_url: https://download.docker.com/linux/ubuntu/gpg
+    key_path: /etc/apt/keyrings/docker.gpg
+    dearmor: true
+    repo: "deb [arch={{ apt_arch }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ docker_apt_release }} stable"
+
+  - name: cursor
+    key_url: https://downloads.cursor.com/keys/anysphere.asc
+    key_path: /etc/apt/keyrings/cursor.gpg
+    dearmor: true
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/cursor.gpg] https://downloads.cursor.com/aptrepo stable main"
+
+  - name: github-cli
+    key_url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    key_path: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    repo: "deb [arch={{ apt_arch }} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+
+  - name: google-chrome
+    key_url: https://dl-ssl.google.com/linux/linux_signing_key.pub
+    key_path: /etc/apt/keyrings/google.gpg
+    dearmor: true
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/google.gpg] https://dl.google.com/linux/chrome/deb/ stable main"
+
+  - name: antigravity
+    key_url: https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg
+    key_path: /etc/apt/keyrings/antigravity-repo-key.gpg
+    dearmor: true
+    repo: "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main"
+
+  - name: vscode
+    key_url: https://packages.microsoft.com/keys/microsoft.asc
+    key_path: /etc/apt/keyrings/packages.microsoft.gpg
+    dearmor: true
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main"
+
+  - name: charm
+    key_url: https://repo.charm.sh/apt/gpg.key
+    key_path: /etc/apt/keyrings/charm.gpg
+    dearmor: true
+    repo: "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *"
+
+brew_packages:
+  - lazygit
+  - tmuxinator
+  - 1password-cli
+
+mise_tools:
+  - node
+  - bun
+  - python
+  - ruby@3.4
+  - uv
+  - rust

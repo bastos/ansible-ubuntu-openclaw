@@ -1,0 +1,230 @@
+---
+- name: Configure Ubuntu Workstation
+  hosts: workstations
+  become: true
+  gather_facts: true
+
+  tasks:
+    # --- Prerequisites (needed for repo setup) ---
+    - name: Install prerequisites for repository setup
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+
+    # --- APT Repositories ---
+    - name: Ensure keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Add APT signing keys (direct)
+      ansible.builtin.get_url:
+        url: "{{ item.key_url }}"
+        dest: "{{ item.key_path }}"
+        mode: "0644"
+      loop: "{{ apt_repos }}"
+      when: not (item.dearmor | default(false))
+
+    - name: Add APT signing keys (dearmored)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -fsSL "{{ item.key_url }}" | gpg --dearmor --batch --yes -o "{{ item.key_path }}"
+      args:
+        executable: /bin/bash
+      loop: "{{ apt_repos }}"
+      when: item.dearmor | default(false)
+      changed_when: true
+
+    - name: Add APT repositories
+      ansible.builtin.apt_repository:
+        repo: "{{ item.repo }}"
+        filename: "{{ item.name }}"
+        state: present
+        update_cache: false
+      loop: "{{ apt_repos }}"
+
+    # --- APT Packages ---
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 0
+
+    - name: Install base packages
+      ansible.builtin.apt:
+        name: "{{ base_packages }}"
+        state: present
+
+    - name: Install third-party packages
+      ansible.builtin.apt:
+        name: "{{ third_party_packages }}"
+        state: present
+
+    - name: Install Docker packages
+      ansible.builtin.apt:
+        name: "{{ docker_ce_packages }}"
+        state: present
+
+    # --- Docker ---
+    - name: Add user to docker group
+      ansible.builtin.user:
+        name: "{{ target_user }}"
+        groups: docker
+        append: true
+      # Note: docker group is created by the Docker package installed above
+
+    # --- SSH ---
+    - name: Ensure .ssh directory exists
+      ansible.builtin.file:
+        path: "{{ target_user_home }}/.ssh"
+        state: directory
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0700"
+
+    - name: Add authorized SSH key
+      ansible.posix.authorized_key:
+        user: "{{ target_user }}"
+        key: "{{ ssh_public_key }}"
+        state: present
+
+    - name: Disable SSH password authentication
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/99-keys-only.conf
+        content: |
+          PasswordAuthentication no
+          PubkeyAuthentication yes
+        mode: "0644"
+      notify: Restart SSH
+
+    # --- Snap ---
+    - name: Install snap-store
+      community.general.snap:
+        name: snap-store
+        state: present
+
+    # --- User Tools (Homebrew) ---
+    - name: Ensure Homebrew prefix directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0755"
+      loop:
+        - /home/linuxbrew
+        - "{{ brew_prefix }}"
+
+    - name: Install Homebrew
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      args:
+        creates: "{{ brew_prefix }}/bin/brew"
+
+    - name: Add Homebrew to bashrc
+      ansible.builtin.lineinfile:
+        path: "{{ target_user_home }}/.bashrc"
+        line: "eval \"$({{ brew_prefix }}/bin/brew shellenv)\""
+        create: true
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0644"
+
+    - name: Install Homebrew packages
+      become: true
+      become_user: "{{ target_user }}"
+      community.general.homebrew:
+        name: "{{ brew_packages }}"
+        state: present
+        path: "{{ brew_prefix }}/bin"
+
+    # --- User Tools (mise) ---
+    - name: Install mise
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        curl -fsSL https://mise.run | sh
+      args:
+        creates: "{{ target_user_home }}/.local/bin/mise"
+
+    - name: Add mise to bashrc
+      ansible.builtin.lineinfile:
+        path: "{{ target_user_home }}/.bashrc"
+        line: "eval \"$({{ target_user_home }}/.local/bin/mise activate bash)\""
+        create: true
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0644"
+
+    - name: Install mise tools
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        eval "$({{ target_user_home }}/.local/bin/mise activate bash)"
+        mise install {{ item }}
+        mise use -g {{ item }}
+      args:
+        executable: /bin/bash
+      loop: "{{ mise_tools }}"
+      register: mise_result
+      changed_when: "'installed' in mise_result.stdout"
+
+    # --- Agent CLIs ---
+    - name: Install Claude CLI
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        curl -fsSL https://claude.ai/install.sh | bash
+      args:
+        creates: "{{ target_user_home }}/.claude/local/bin/claude"
+
+    - name: Install Gemini CLI via npm
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        eval "$({{ target_user_home }}/.local/bin/mise activate bash)"
+        npm install -g @google/gemini-cli
+      environment:
+        npm_config_prefix: "{{ target_user_home }}/.local"
+      args:
+        executable: /bin/bash
+        creates: "{{ target_user_home }}/.local/bin/gemini"
+
+    - name: Install OpenCode
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        curl -fsSL https://opencode.ai/install | bash
+      args:
+        creates: "{{ target_user_home }}/.local/bin/opencode"
+
+    - name: Install Codex CLI via npm
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        eval "$({{ target_user_home }}/.local/bin/mise activate bash)"
+        npm install -g @openai/codex
+      environment:
+        npm_config_prefix: "{{ target_user_home }}/.local"
+      args:
+        executable: /bin/bash
+        creates: "{{ target_user_home }}/.local/bin/codex"
+
+    # --- Tailscale ---
+    - name: Install Tailscale
+      ansible.builtin.shell: |
+        curl -fsSL https://tailscale.com/install.sh | sh
+      args:
+        creates: /usr/bin/tailscale
+
+  handlers:
+    - name: Restart SSH
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted

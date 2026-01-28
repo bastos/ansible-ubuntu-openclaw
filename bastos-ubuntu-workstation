@@ -1,0 +1,5 @@
+[workstations]
+ubuntu-workstation ansible_host=192.168.88.62 ansible_user=bastos
+
+[workstations:vars]
+ansible_python_interpreter=/usr/bin/python3
