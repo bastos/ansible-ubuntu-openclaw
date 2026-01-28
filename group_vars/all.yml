@@ -24,6 +24,30 @@ ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK5YDl9pSsedMatSLLjbOgMVutC
 nomachine_download_url_latest: "https://download.nomachine.com/download/?id=1&platform=linux"
 nomachine_download_url_fallback: "https://web9001.nomachine.com/download/9.3/Linux/nomachine_9.3.7_1_amd64.deb"
 nomachine_expected_md5: "e0b8c6f3e8faee998818892fcaa7de03"
+# NoMachine download handling
+nomachine_deb_path: /tmp/nomachine.deb
+
+# Optional: pass via env (recommended for one-time use keys)
+#   TAILSCALE_AUTHKEY=tskey-... ansible-playbook ...
+# Or via extra-vars:
+#   ansible-playbook ... -e tailscale_authkey=tskey-...
+tailscale_authkey: "{{ lookup('ansible.builtin.env', 'TAILSCALE_AUTHKEY') | default('', true) }}"
+# Optional: set a stable hostname in Tailscale
+tailscale_hostname: ""
+# Optional: extra args for `tailscale up`, e.g. "--ssh --accept-routes"
+tailscale_up_extra_args: "--ssh --accept-routes"
+# Optional: local Unix username allowed to operate tailscaled without sudo
+# This is applied via `tailscale up --operator=<user>`.
+tailscale_operator_user: "{{ target_user }}"
+# Optional: RDP password for GNOME Remote Desktop (recommended to pass via env)
+#   RDP_PASSWORD='...' ansible-playbook ...
+rdp_password: "{{ lookup('ansible.builtin.env', 'RDP_PASSWORD') | default('', true) }}"
+# Optional: restrict RDP/SSH to this CIDR (LAN or Tailscale), defaults to your LAN
+remote_access_cidr: "192.168.0.0/16"
+# System RDP (GDM Remote Login) gate credentials (recommended to pass via env)
+#   SYSTEM_RDP_USER='rdp' SYSTEM_RDP_PASSWORD='...' ansible-playbook ...
+system_rdp_user: "{{ lookup('ansible.builtin.env', 'SYSTEM_RDP_USER') | default(target_user, true) }}"
+system_rdp_password: "{{ lookup('ansible.builtin.env', 'SYSTEM_RDP_PASSWORD') | default(rdp_password, true) }}"
 
 base_packages:
   - ca-certificates

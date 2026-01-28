@@ -4,31 +4,6 @@
   become: true
   gather_facts: true
 
-  vars:
-    # Optional: pass via env (recommended for one-time use keys)
-    #   TAILSCALE_AUTHKEY=tskey-... ansible-playbook ...
-    # Or via extra-vars:
-    #   ansible-playbook ... -e tailscale_authkey=tskey-...
-    tailscale_authkey: "{{ lookup('ansible.builtin.env', 'TAILSCALE_AUTHKEY') | default('', true) }}"
-    # Optional: set a stable hostname in Tailscale
-    tailscale_hostname: ""
-    # Optional: extra args for `tailscale up`, e.g. "--ssh --accept-routes"
-    tailscale_up_extra_args: "--ssh --accept-routes"
-    # Optional: local Unix username allowed to operate tailscaled without sudo
-    # This is applied via `tailscale up --operator=<user>`.
-    tailscale_operator_user: "{{ target_user }}"
-    # Optional: RDP password for GNOME Remote Desktop (recommended to pass via env)
-    #   RDP_PASSWORD='...' ansible-playbook ...
-    rdp_password: "{{ lookup('ansible.builtin.env', 'RDP_PASSWORD') | default('', true) }}"
-    # Optional: restrict RDP/SSH to this CIDR (LAN or Tailscale), defaults to your LAN
-    remote_access_cidr: "192.168.0.0/16"
-    # System RDP (GDM Remote Login) gate credentials (recommended to pass via env)
-    #   SYSTEM_RDP_USER='rdp' SYSTEM_RDP_PASSWORD='...' ansible-playbook ...
-    system_rdp_user: "{{ lookup('ansible.builtin.env', 'SYSTEM_RDP_USER') | default(target_user, true) }}"
-    system_rdp_password: "{{ lookup('ansible.builtin.env', 'SYSTEM_RDP_PASSWORD') | default(rdp_password, true) }}"
-    # NoMachine download handling
-    nomachine_deb_path: /tmp/nomachine.deb
-
   tasks:
     # --- Prerequisites (needed for repo setup) ---
     - name: Install prerequisites for repository setup
@@ -369,8 +344,8 @@
             + (tailscale_up_extra_args.split() if tailscale_up_extra_args | length > 0 else [])
           }}
       when: tailscale_authkey | length > 0
-      no_log: true
-      changed_when: true
+      register: tailscale_up
+      changed_when: "'Success' in tailscale_up.stdout or 'Success' in tailscale_up.stderr or tailscale_up.rc == 0"
 
     # CLI default (what /usr/bin/x-www-browser points to)
     - name: Set x-www-browser to Chrome
