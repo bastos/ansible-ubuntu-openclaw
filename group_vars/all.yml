@@ -68,6 +68,7 @@ base_packages:
   - zlib1g-dev
 
 third_party_packages:
+  - 1password
   - cursor
   - gh
   - google-chrome-stable
@@ -85,6 +86,12 @@ docker_ce_packages:
   - docker-compose-plugin
 
 apt_repos:
+  - name: 1password
+    key_url: https://downloads.1password.com/linux/keys/1password.asc
+    key_path: /etc/apt/keyrings/1password-archive-keyring.gpg
+    dearmor: true
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/amd64 stable main"
+
   - name: docker
     key_url: https://download.docker.com/linux/ubuntu/gpg
     key_path: /etc/apt/keyrings/docker.gpg
