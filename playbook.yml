@@ -26,6 +26,8 @@
     #   SYSTEM_RDP_USER='rdp' SYSTEM_RDP_PASSWORD='...' ansible-playbook ...
     system_rdp_user: "{{ lookup('ansible.builtin.env', 'SYSTEM_RDP_USER') | default(target_user, true) }}"
     system_rdp_password: "{{ lookup('ansible.builtin.env', 'SYSTEM_RDP_PASSWORD') | default(rdp_password, true) }}"
+    # NoMachine download handling
+    nomachine_deb_path: /tmp/nomachine.deb
 
   tasks:
     # --- Prerequisites (needed for repo setup) ---
@@ -175,6 +177,65 @@
           PubkeyAuthentication yes
         mode: "0644"
       notify: Restart SSH
+
+    # --- NoMachine ---
+    - name: Check installed NoMachine version
+      ansible.builtin.command: dpkg-query -W -f='${Version}' nomachine
+      register: nomachine_installed_version
+      changed_when: false
+      failed_when: false
+
+    - name: Download and install NoMachine
+      when: not ansible_check_mode
+      block:
+        - name: Download NoMachine (latest)
+          ansible.builtin.get_url:
+            url: "{{ nomachine_download_url_latest }}"
+            dest: "{{ nomachine_deb_path }}"
+            mode: "0644"
+            force: true
+            timeout: 30
+
+        - name: Read NoMachine package version (latest)
+          ansible.builtin.command: dpkg-deb --field {{ nomachine_deb_path }} Version
+          register: nomachine_latest_version
+          changed_when: false
+          failed_when: false
+
+        - name: Download NoMachine fallback (checksum verified when available)
+          ansible.builtin.get_url:
+            url: "{{ nomachine_download_url_fallback }}"
+            dest: "{{ nomachine_deb_path }}"
+            mode: "0644"
+            force: true
+            timeout: 30
+            checksum: "{{ 'md5:' + nomachine_expected_md5 if nomachine_expected_md5 | default('') | length > 0 else omit }}"
+          when: nomachine_latest_version.rc != 0
+
+        - name: Read NoMachine package version (fallback)
+          ansible.builtin.command: dpkg-deb --field {{ nomachine_deb_path }} Version
+          register: nomachine_fallback_version
+          changed_when: false
+          when: nomachine_latest_version.rc != 0
+
+        - name: Use NoMachine package version (latest)
+          ansible.builtin.set_fact:
+            nomachine_deb_version: "{{ nomachine_latest_version }}"
+          when: nomachine_latest_version.rc == 0
+
+        - name: Use NoMachine package version (fallback)
+          ansible.builtin.set_fact:
+            nomachine_deb_version: "{{ nomachine_fallback_version }}"
+          when: nomachine_latest_version.rc != 0
+
+        - name: Install NoMachine
+          ansible.builtin.apt:
+            deb: "{{ nomachine_deb_path }}"
+            state: present
+          when: >-
+            (nomachine_deb_version.stdout | default('') | trim | length > 0) and
+            (nomachine_installed_version.stdout | default('') | trim !=
+            nomachine_deb_version.stdout | default('') | trim)
 
     # --- Snap ---
     - name: Install snap-store
@@ -443,19 +504,23 @@
       ansible.builtin.command: systemctl set-default graphical.target
       changed_when: false
 
-    - name: Allow RDP from LAN (adjust subnet)
+    - name: Allow RDP
       community.general.ufw:
         rule: allow
         proto: tcp
         port: "3389"
-        from_ip: "{{ remote_access_cidr }}"
 
-    - name: Allow SSH from LAN/VPN (adjust subnet)
+    - name: Allow SSH from
       community.general.ufw:
         rule: allow
         proto: tcp
         port: "22"
-        from_ip: "{{ remote_access_cidr }}"
+
+    - name: Allow Nomachine
+      community.general.ufw:
+        rule: allow
+        proto: tcp
+        port: "4000"
 
   handlers:
     - name: Restart SSH
