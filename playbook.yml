@@ -328,24 +328,26 @@
         creates: "{{ target_user_home }}/.local/bin/codex"
 
     # --- Tailscale ---
-    - name: Install Tailscale
-      ansible.builtin.shell: |
-        curl -fsSL https://tailscale.com/install.sh | sh
-      args:
-        creates: /usr/bin/tailscale
+    - name: Tailscale
+      block:
+        - name: Install Tailscale
+          ansible.builtin.shell: |
+            curl -fsSL https://tailscale.com/install.sh | sh
+          args:
+            creates: /usr/bin/tailscale
 
-    - name: Configure Tailscale (optional)
-      ansible.builtin.command:
-        argv: >-
-          {{
-            ['tailscale', 'up', '--authkey=' ~ tailscale_authkey]
-            + (['--operator=' ~ tailscale_operator_user] if tailscale_operator_user | length > 0 else [])
-            + (['--hostname=' ~ tailscale_hostname] if tailscale_hostname | length > 0 else [])
-            + (tailscale_up_extra_args.split() if tailscale_up_extra_args | length > 0 else [])
-          }}
-      when: tailscale_authkey | length > 0
-      register: tailscale_up
-      changed_when: "'Success' in tailscale_up.stdout or 'Success' in tailscale_up.stderr or tailscale_up.rc == 0"
+        - name: Configure Tailscale (optional)
+          ansible.builtin.command:
+            argv: >-
+              {{
+                ['tailscale', 'up', '--authkey=' ~ tailscale_authkey]
+                + (['--operator=' ~ tailscale_operator_user] if tailscale_operator_user | length > 0 else [])
+                + (['--hostname=' ~ tailscale_hostname] if tailscale_hostname | length > 0 else [])
+                + (tailscale_up_extra_args.split() if tailscale_up_extra_args | length > 0 else [])
+              }}
+          when: tailscale_authkey | length > 0
+          register: tailscale_up
+          changed_when: "'Success' in tailscale_up.stdout or 'Success' in tailscale_up.stderr or tailscale_up.rc == 0"
 
     # CLI default (what /usr/bin/x-www-browser points to)
     - name: Set x-www-browser to Chrome
@@ -380,110 +382,113 @@
         executable: /bin/bash
       changed_when: false
 
-    - name: Install GNOME Remote Desktop + winpr-utils (system RDP)
-      ansible.builtin.apt:
-        name:
-          - gnome-remote-desktop
-          - winpr-utils
-        state: present
-        update_cache: true
+    # --- Remote Desktop ---
+    - name: Remote Desktop
+      block:
+        - name: Install GNOME Remote Desktop + winpr-utils (system RDP)
+          ansible.builtin.apt:
+            name:
+              - gnome-remote-desktop
+              - winpr-utils
+            state: present
+            update_cache: true
 
-    - name: Reload systemd units (in case packages updated unit files)
-      ansible.builtin.command: systemctl daemon-reload
-      changed_when: false
+        - name: Reload systemd units (in case packages updated unit files)
+          ansible.builtin.command: systemctl daemon-reload
+          changed_when: false
 
-    - name: Ensure gnome-remote-desktop TLS directory exists
-      ansible.builtin.file:
-        path: /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop
-        state: directory
-        owner: gnome-remote-desktop
-        group: gnome-remote-desktop
-        mode: "0700"
+        - name: Ensure gnome-remote-desktop TLS directory exists
+          ansible.builtin.file:
+            path: /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop
+            state: directory
+            owner: gnome-remote-desktop
+            group: gnome-remote-desktop
+            mode: "0700"
 
-    - name: Generate system RDP TLS cert/key (winpr-makecert)
-      become: true
-      become_user: gnome-remote-desktop
-      ansible.builtin.command:
-        argv:
-          - winpr-makecert
-          - -silent
-          - -rdp
-          - -path
-          - /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop
-          - tls
-      args:
-        creates: /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop/tls.key
-      changed_when: true
+        - name: Generate system RDP TLS cert/key (winpr-makecert)
+          become: true
+          become_user: gnome-remote-desktop
+          ansible.builtin.command:
+            argv:
+              - winpr-makecert
+              - -silent
+              - -rdp
+              - -path
+              - /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop
+              - tls
+          args:
+            creates: /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop/tls.key
+          changed_when: true
 
-    - name: Configure system RDP TLS key
-      ansible.builtin.command:
-        argv:
-          - grdctl
-          - --system
-          - rdp
-          - set-tls-key
-          - /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop/tls.key
-      changed_when: true
+        - name: Configure system RDP TLS key
+          ansible.builtin.command:
+            argv:
+              - grdctl
+              - --system
+              - rdp
+              - set-tls-key
+              - /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop/tls.key
+          changed_when: true
 
-    - name: Configure system RDP TLS cert
-      ansible.builtin.command:
-        argv:
-          - grdctl
-          - --system
-          - rdp
-          - set-tls-cert
-          - /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop/tls.crt
-      changed_when: true
+        - name: Configure system RDP TLS cert
+          ansible.builtin.command:
+            argv:
+              - grdctl
+              - --system
+              - rdp
+              - set-tls-cert
+              - /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop/tls.crt
+          changed_when: true
 
-    - name: Set system RDP gate credentials (required for remote login)
-      ansible.builtin.command:
-        argv:
-          - grdctl
-          - --system
-          - rdp
-          - set-credentials
-          - "{{ system_rdp_user }}"
-          - "{{ system_rdp_password }}"
-      when: system_rdp_password | length > 0
-      no_log: true
-      changed_when: true
+        - name: Set system RDP gate credentials (required for remote login)
+          ansible.builtin.command:
+            argv:
+              - grdctl
+              - --system
+              - rdp
+              - set-credentials
+              - "{{ system_rdp_user }}"
+              - "{{ system_rdp_password }}"
+          when: system_rdp_password | length > 0
+          no_log: true
+          changed_when: true
 
-    - name: Enable system RDP (GDM remote login)
-      ansible.builtin.command: grdctl --system rdp enable
-      changed_when: true
+        - name: Enable system RDP (GDM remote login)
+          ansible.builtin.command: grdctl --system rdp enable
+          changed_when: true
 
-    - name: Check grdctl RDP subcommands
-      ansible.builtin.command: grdctl --system rdp --help
-      register: grdctl_rdp_help
-      changed_when: false
-      failed_when: false
+        - name: Check grdctl RDP subcommands
+          ansible.builtin.command: grdctl --system rdp --help
+          register: grdctl_rdp_help
+          changed_when: false
+          failed_when: false
 
-    - name: Allow remote control over RDP (not view-only) when supported
-      become: true
-      ansible.builtin.command: grdctl --system rdp disable-view-only
-      when: >-
-        (grdctl_rdp_help.stdout is search("disable-view-only")) or
-        (grdctl_rdp_help.stderr is search("disable-view-only"))
-      changed_when: false
-      failed_when: false
+        - name: Allow remote control over RDP (not view-only) when supported
+          become: true
+          ansible.builtin.command: grdctl --system rdp disable-view-only
+          when: >-
+            (grdctl_rdp_help.stdout is search("disable-view-only")) or
+            (grdctl_rdp_help.stderr is search("disable-view-only"))
+          changed_when: false
+          failed_when: false
 
-    - name: Ensure GNOME Remote Desktop is enabled and started
-      ansible.builtin.systemd:
-        name: "{{ item }}"
-        enabled: true
-        state: restarted
-      loop:
-        - gnome-remote-desktop
+        - name: Ensure GNOME Remote Desktop is enabled and started
+          ansible.builtin.systemd:
+            name: "{{ item }}"
+            enabled: true
+            state: restarted
+          loop:
+            - gnome-remote-desktop
 
-    - name: Ensure graphical target is default
-      ansible.builtin.command: systemctl set-default graphical.target
-      changed_when: false
+        - name: Ensure graphical target is default
+          ansible.builtin.command: systemctl set-default graphical.target
+          changed_when: false
 
-    - name: Allow RDP
-      community.general.ufw:
-        rule: allow
-        proto: tcp
-        port: "3389"
+        - name: Allow RDP
+          community.general.ufw:
+            rule: allow
+            proto: tcp
+            port: "3389"
 
     - name: Allow SSH from
       community.general.ufw:
