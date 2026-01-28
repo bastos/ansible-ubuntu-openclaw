@@ -130,7 +130,7 @@
     - name: Add Homebrew to bashrc
       ansible.builtin.lineinfile:
         path: "{{ target_user_home }}/.bashrc"
-        line: "eval \"$({{ brew_prefix }}/bin/brew shellenv)\""
+        line: 'eval "$({{ brew_prefix }}/bin/brew shellenv)"'
         create: true
         owner: "{{ target_user }}"
         group: "{{ target_user }}"
@@ -156,7 +156,7 @@
     - name: Add mise to bashrc
       ansible.builtin.lineinfile:
         path: "{{ target_user_home }}/.bashrc"
-        line: "eval \"$({{ target_user_home }}/.local/bin/mise activate bash)\""
+        line: 'eval "$({{ target_user_home }}/.local/bin/mise activate bash)"'
         create: true
         owner: "{{ target_user }}"
         group: "{{ target_user }}"
@@ -222,6 +222,39 @@
         curl -fsSL https://tailscale.com/install.sh | sh
       args:
         creates: /usr/bin/tailscale
+
+    # CLI default (what /usr/bin/x-www-browser points to)
+    - name: Set x-www-browser to Chrome
+      community.general.alternatives:
+        name: x-www-browser
+        path: /usr/bin/google-chrome-stable
+      when: ansible_facts.os_family == "Debian"
+
+    # Desktop default (GNOME, per-user). Run as the target desktop user, not root.
+    - name: Set default browser for GNOME (per-user)
+      become: false
+      vars:
+        desktop_user: "{{ ansible_user_id }}"
+      ansible.builtin.command: >
+        xdg-settings set default-web-browser google-chrome.desktop
+      environment:
+        DISPLAY: ":0"
+        XDG_RUNTIME_DIR: "/run/user/{{ lookup('ansible.builtin.pipe', 'id -u ' ~ desktop_user) }}"
+      changed_when: false
+
+    # MIME associations (covers http/https in most desktops)
+    - name: Ensure Chrome is default for http/https (per-user)
+      become: false
+      ansible.builtin.shell: |
+        set -euo pipefail
+        mkdir -p ~/.config
+        if command -v xdg-mime >/dev/null 2>&1; then
+          xdg-mime default google-chrome.desktop x-scheme-handler/http
+          xdg-mime default google-chrome.desktop x-scheme-handler/https
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
 
   handlers:
     - name: Restart SSH
