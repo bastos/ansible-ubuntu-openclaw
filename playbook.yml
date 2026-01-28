@@ -286,6 +286,23 @@
         executable: /bin/bash
       changed_when: false
 
+    - name: Install GNOME Remote Desktop
+      ansible.builtin.apt:
+        name: gnome-remote-desktop
+        state: present
+        update_cache: true
+
+    - name: Enable system RDP
+      ansible.builtin.command: grdctl --system rdp enable
+      changed_when: false
+
+    - name: Allow RDP from LAN (adjust subnet)
+      community.general.ufw:
+        rule: allow
+        proto: tcp
+        port: "3389"
+        from_ip: "192.168.0.0/16"
+
   handlers:
     - name: Restart SSH
       ansible.builtin.systemd:
