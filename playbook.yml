@@ -135,60 +135,62 @@
         name: snap-store
         state: present
 
-    # --- User Tools (Homebrew) ---
-    - name: Ensure Homebrew prefix directories exist
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        owner: "{{ target_user }}"
-        group: "{{ target_user }}"
-        mode: "0755"
-      loop:
-        - /home/linuxbrew
-        - "{{ brew_prefix }}"
+    - name: Homebrew
+      block:
+        - name: Ensure Homebrew prefix directories exist
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            owner: "{{ target_user }}"
+            group: "{{ target_user }}"
+            mode: "0755"
+          loop:
+            - /home/linuxbrew
+            - "{{ brew_prefix }}"
 
-    - name: Install Homebrew
-      become: true
-      become_user: "{{ target_user }}"
-      ansible.builtin.shell: |
-        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-      args:
-        creates: "{{ brew_prefix }}/bin/brew"
+        - name: Install Homebrew
+          become: true
+          become_user: "{{ target_user }}"
+          ansible.builtin.shell: |
+            NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          args:
+            creates: "{{ brew_prefix }}/bin/brew"
 
-    - name: Add Homebrew to bashrc
-      ansible.builtin.lineinfile:
-        path: "{{ target_user_home }}/.bashrc"
-        line: 'eval "$({{ brew_prefix }}/bin/brew shellenv)"'
-        create: true
-        owner: "{{ target_user }}"
-        group: "{{ target_user }}"
-        mode: "0644"
+        - name: Add Homebrew to bashrc
+          ansible.builtin.lineinfile:
+            path: "{{ target_user_home }}/.bashrc"
+            line: 'eval "$({{ brew_prefix }}/bin/brew shellenv)"'
+            create: true
+            owner: "{{ target_user }}"
+            group: "{{ target_user }}"
+            mode: "0644"
 
-    - name: Install Homebrew packages
-      become: true
-      become_user: "{{ target_user }}"
-      community.general.homebrew:
-        name: "{{ brew_packages }}"
-        state: present
-        path: "{{ brew_prefix }}/bin"
+        - name: Install Homebrew packages
+          become: true
+          become_user: "{{ target_user }}"
+          community.general.homebrew:
+            name: "{{ brew_packages }}"
+            state: present
+            path: "{{ brew_prefix }}/bin"
 
-    # --- User Tools (mise) ---
-    - name: Install mise
-      become: true
-      become_user: "{{ target_user }}"
-      ansible.builtin.shell: |
-        curl -fsSL https://mise.run | sh
-      args:
-        creates: "{{ target_user_home }}/.local/bin/mise"
+    - name: Mise
+      block:
+        - name: Install mise
+          become: true
+          become_user: "{{ target_user }}"
+          ansible.builtin.shell: |
+            curl -fsSL https://mise.run | sh
+          args:
+            creates: "{{ target_user_home }}/.local/bin/mise"
 
-    - name: Add mise to bashrc
-      ansible.builtin.lineinfile:
-        path: "{{ target_user_home }}/.bashrc"
-        line: 'eval "$({{ target_user_home }}/.local/bin/mise activate bash)"'
-        create: true
-        owner: "{{ target_user }}"
-        group: "{{ target_user }}"
-        mode: "0644"
+        - name: Add mise to bashrc
+          ansible.builtin.lineinfile:
+            path: "{{ target_user_home }}/.bashrc"
+            line: 'eval "$({{ target_user_home }}/.local/bin/mise activate bash)"'
+            create: true
+            owner: "{{ target_user }}"
+            group: "{{ target_user }}"
+            mode: "0644"
 
     - name: Install mise tools
       become: true
@@ -245,38 +247,40 @@
           register: tailscale_up
           changed_when: "'Success' in tailscale_up.stdout or 'Success' in tailscale_up.stderr or tailscale_up.rc == 0"
 
-    # CLI default (what /usr/bin/x-www-browser points to)
-    - name: Set x-www-browser to Chrome
-      community.general.alternatives:
-        name: x-www-browser
-        path: /usr/bin/google-chrome-stable
-      when: ansible_facts.os_family == "Debian"
+    - name: Set Default Browser
+      block:
+        # CLI default (what /usr/bin/x-www-browser points to)
+        - name: Set x-www-browser to Chrome
+          community.general.alternatives:
+            name: x-www-browser
+            path: /usr/bin/google-chrome-stable
+          when: ansible_facts.os_family == "Debian"
 
-    # Desktop default (GNOME, per-user). Run as the target desktop user, not root.
-    - name: Set default browser for GNOME (per-user)
-      become: false
-      vars:
-        desktop_user: "{{ ansible_facts['user_id'] }}"
-      ansible.builtin.command: >
-        xdg-settings set default-web-browser google-chrome.desktop
-      environment:
-        DISPLAY: ":0"
-        XDG_RUNTIME_DIR: "/run/user/{{ lookup('ansible.builtin.pipe', 'id -u ' ~ desktop_user) }}"
-      changed_when: false
+        # Desktop default (GNOME, per-user). Run as the target desktop user, not root.
+        - name: Set default browser for GNOME (per-user)
+          become: false
+          vars:
+            desktop_user: "{{ ansible_facts['user_id'] }}"
+          ansible.builtin.command: >
+            xdg-settings set default-web-browser google-chrome.desktop
+          environment:
+            DISPLAY: ":0"
+            XDG_RUNTIME_DIR: "/run/user/{{ lookup('ansible.builtin.pipe', 'id -u ' ~ desktop_user) }}"
+          changed_when: false
 
-    # MIME associations (covers http/https in most desktops)
-    - name: Ensure Chrome is default for http/https (per-user)
-      become: false
-      ansible.builtin.shell: |
-        set -euo pipefail
-        mkdir -p ~/.config
-        if command -v xdg-mime >/dev/null 2>&1; then
-          xdg-mime default google-chrome.desktop x-scheme-handler/http
-          xdg-mime default google-chrome.desktop x-scheme-handler/https
-        fi
-      args:
-        executable: /bin/bash
-      changed_when: false
+        # MIME associations (covers http/https in most desktops)
+        - name: Ensure Chrome is default for http/https (per-user)
+          become: false
+          ansible.builtin.shell: |
+            set -euo pipefail
+            mkdir -p ~/.config
+            if command -v xdg-mime >/dev/null 2>&1; then
+              xdg-mime default google-chrome.desktop x-scheme-handler/http
+              xdg-mime default google-chrome.desktop x-scheme-handler/https
+            fi
+          args:
+            executable: /bin/bash
+          changed_when: false
 
     # --- Remote Desktop ---
     - name: Remote Desktop
@@ -386,17 +390,19 @@
             proto: tcp
             port: "3389"
 
-    - name: Allow SSH from
-      community.general.ufw:
-        rule: allow
-        proto: tcp
-        port: "22"
+    - name: Allow SSH and Nomachine through firewall
+      block:
+        - name: Allow SSH from
+          community.general.ufw:
+            rule: allow
+            proto: tcp
+            port: "22"
 
-    - name: Allow Nomachine
-      community.general.ufw:
-        rule: allow
-        proto: tcp
-        port: "4000"
+        - name: Allow Nomachine
+          community.general.ufw:
+            rule: allow
+            proto: tcp
+            port: "4000"
 
   handlers:
     - name: Restart SSH
