@@ -15,27 +15,6 @@
         state: present
         update_cache: true
 
-    # --- APT Repositories (deb822 format) ---
-    # - name: Remove old-format APT repo files (migrated to deb822)
-    #   ansible.builtin.file:
-    #     path: "/etc/apt/sources.list.d/{{ item.name }}.list"
-    #     state: absent
-    #   loop: "{{ apt_repos }}"
-
-    # - name: Remove stale GPG keys from old approach
-    #   ansible.builtin.file:
-    #     path: "{{ item }}"
-    #     state: absent
-    #   loop:
-    #     - /usr/share/keyrings/1password-archive-keyring.gpg
-    #     - /etc/apt/keyrings/docker.gpg
-    #     - /etc/apt/keyrings/cursor.gpg
-    #     - /etc/apt/keyrings/githubcli-archive-keyring.gpg
-    #     - /etc/apt/keyrings/google.gpg
-    #     - /etc/apt/keyrings/antigravity-repo-key.gpg
-    #     - /etc/apt/keyrings/packages.microsoft.gpg
-    #     - /etc/apt/keyrings/charm.gpg
-
     - name: Configure APT repositories (deb822 format)
       ansible.builtin.deb822_repository:
         name: "{{ item.name }}"
@@ -155,63 +134,30 @@
       notify: Restart SSH
 
     # --- NoMachine ---
-    - name: Check installed NoMachine version
-      ansible.builtin.command: dpkg-query -W -f='${Version}' nomachine
-      register: nomachine_installed_version
-      changed_when: false
-      failed_when: false
-
-    - name: Download and install NoMachine
-      when: not ansible_check_mode
+    - name: NoMachine
       block:
-        - name: Download NoMachine (latest)
-          ansible.builtin.get_url:
-            url: "{{ nomachine_download_url_latest }}"
-            dest: "{{ nomachine_deb_path }}"
-            mode: "0644"
-            force: true
-            timeout: 30
-
-        - name: Read NoMachine package version (latest)
-          ansible.builtin.command: dpkg-deb --field {{ nomachine_deb_path }} Version
-          register: nomachine_latest_version
-          changed_when: false
+        - name: Check if NoMachine is running
+          ansible.builtin.systemd:
+            name: nxserver.service
+          register: nxserver_status
           failed_when: false
 
-        - name: Download NoMachine fallback (checksum verified when available)
+        - name: Download NoMachine
           ansible.builtin.get_url:
-            url: "{{ nomachine_download_url_fallback }}"
+            url: "{{ nomachine_deb_url }}"
             dest: "{{ nomachine_deb_path }}"
             mode: "0644"
-            force: true
-            timeout: 30
-            checksum: "{{ 'md5:' + nomachine_expected_md5 if nomachine_expected_md5 | default('') | length > 0 else omit }}"
-          when: nomachine_latest_version.rc != 0
-
-        - name: Read NoMachine package version (fallback)
-          ansible.builtin.command: dpkg-deb --field {{ nomachine_deb_path }} Version
-          register: nomachine_fallback_version
-          changed_when: false
-          when: nomachine_latest_version.rc != 0
-
-        - name: Use NoMachine package version (latest)
-          ansible.builtin.set_fact:
-            nomachine_deb_version: "{{ nomachine_latest_version }}"
-          when: nomachine_latest_version.rc == 0
-
-        - name: Use NoMachine package version (fallback)
-          ansible.builtin.set_fact:
-            nomachine_deb_version: "{{ nomachine_fallback_version }}"
-          when: nomachine_latest_version.rc != 0
+          when:
+            - not ansible_check_mode
+            - nxserver_status.status.ActiveState | default('') != 'active'
 
         - name: Install NoMachine
           ansible.builtin.apt:
             deb: "{{ nomachine_deb_path }}"
             state: present
-          when: >-
-            (nomachine_deb_version.stdout | default('') | trim | length > 0) and
-            (nomachine_installed_version.stdout | default('') | trim !=
-            nomachine_deb_version.stdout | default('') | trim)
+          when:
+            - not ansible_check_mode
+            - nxserver_status.status.ActiveState | default('') != 'active'
 
     # --- Snap ---
     - name: Install snap-store
