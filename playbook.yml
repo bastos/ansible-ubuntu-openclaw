@@ -212,37 +212,16 @@
       args:
         creates: "{{ target_user_home }}/.claude/local/bin/claude"
 
-    - name: Install Gemini CLI via npm
+    - name: Install global npm packages
       become: true
       become_user: "{{ target_user }}"
-      ansible.builtin.shell: |
-        eval "$({{ target_user_home }}/.local/bin/mise activate bash)"
-        npm install -g @google/gemini-cli
+      community.general.npm:
+        name: "{{ item }}"
+        global: true
+        state: present
       environment:
-        npm_config_prefix: "{{ target_user_home }}/.local"
-      args:
-        executable: /bin/bash
-        creates: "{{ target_user_home }}/.local/bin/gemini"
-
-    - name: Install OpenCode
-      become: true
-      become_user: "{{ target_user }}"
-      ansible.builtin.shell: |
-        curl -fsSL https://opencode.ai/install | bash
-      args:
-        creates: "{{ target_user_home }}/.local/bin/opencode"
-
-    - name: Install Codex CLI via npm
-      become: true
-      become_user: "{{ target_user }}"
-      ansible.builtin.shell: |
-        eval "$({{ target_user_home }}/.local/bin/mise activate bash)"
-        npm install -g @openai/codex
-      environment:
-        npm_config_prefix: "{{ target_user_home }}/.local"
-      args:
-        executable: /bin/bash
-        creates: "{{ target_user_home }}/.local/bin/codex"
+        PATH: "{{ target_user_home }}/.local/share/mise/shims:{{ target_user_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+      loop: "{{ npm_global_packages }}"
 
     # --- Tailscale ---
     - name: Tailscale
