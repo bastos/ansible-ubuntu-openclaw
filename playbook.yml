@@ -15,6 +15,7 @@
         state: present
         update_cache: true
 
+    # --- APT Packages ---
     - name: Configure APT repositories (deb822 format)
       ansible.builtin.deb822_repository:
         name: "{{ item.name }}"
@@ -28,37 +29,6 @@
         enabled: true
       loop: "{{ apt_repos }}"
 
-    - name: Ensure 1Password debsig policy directory exists
-      ansible.builtin.file:
-        path: /etc/debsig/policies/AC2D62742012EA22
-        state: directory
-        mode: "0755"
-      when: apt_repos | selectattr('name', 'equalto', '1password') | list | length > 0
-
-    - name: Install 1Password debsig policy
-      ansible.builtin.get_url:
-        url: https://downloads.1password.com/linux/debian/debsig/1password.pol
-        dest: /etc/debsig/policies/AC2D62742012EA22/1password.pol
-        mode: "0644"
-      when: apt_repos | selectattr('name', 'equalto', '1password') | list | length > 0
-
-    - name: Ensure 1Password debsig keyring directory exists
-      ansible.builtin.file:
-        path: /usr/share/debsig/keyrings/AC2D62742012EA22
-        state: directory
-        mode: "0755"
-      when: apt_repos | selectattr('name', 'equalto', '1password') | list | length > 0
-
-    - name: Install 1Password debsig key
-      ansible.builtin.shell: |
-        set -euo pipefail
-        curl -fsSL https://downloads.1password.com/linux/keys/1password.asc | gpg --dearmor --batch --yes -o /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg
-      args:
-        executable: /bin/bash
-        creates: /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg
-      when: apt_repos | selectattr('name', 'equalto', '1password') | list | length > 0
-
-    # --- APT Packages ---
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
