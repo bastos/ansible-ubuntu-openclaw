@@ -181,9 +181,9 @@ brew_packages:
   - 1password-cli
 
 mise_tools:
-  - node
+  - node@25
   - bun
-  - python
+  - python@3.13
   - ruby@3.4
   - uv
   - rust

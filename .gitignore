@@ -1,3 +1,13 @@
 .claude/settings.local.json
 *.retry
-.ansible/
+.ansible/skills/
+.agent/skills/
+.cursor/skills/
+.trae/skills/
+.windsurf/skills/
+.claude/skills/
+.codex/skills/
+.github/skills/
+.opencode/skills/
+.gemini/skills/
+.agents/skills/
