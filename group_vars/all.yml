@@ -193,3 +193,15 @@ npm_global_packages:
   - "@google/gemini-cli"
   - "@openai/codex"
   - opencode-ai
+
+# --- Sunshine ---
+sunshine_arch: "{{ 'amd64' if apt_arch == 'amd64' else 'arm64' }}"
+sunshine_deb_url: "https://github.com/LizardByte/Sunshine/releases/latest/download/sunshine-ubuntu-24.04-{{ sunshine_arch }}.deb"
+sunshine_deb_path: "/tmp/sunshine.deb"
+sunshine_enable_kms_capture: true
+sunshine_start_now: true
+# You already install ufw in base_packages, so this can be true
+sunshine_configure_ufw: true
+# Default port family (config port=47989) table from Sunshine docs
+sunshine_tcp_ports: [47984, 47989, 47990, 48010]
+sunshine_udp_ports: [5353, 47998, 47999, 48000, 48002, 48010]

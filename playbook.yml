@@ -129,6 +129,98 @@
             - not ansible_check_mode
             - nxserver_status.status.ActiveState | default('') != 'active'
 
+        - name: Allow Nomachine
+          community.general.ufw:
+            rule: allow
+            proto: tcp
+            port: "4000"
+
+    # --- Sunshine (Moonlight Host) ---
+    - name: Sunshine
+      block:
+        - name: Install prerequisites for Sunshine
+          ansible.builtin.apt:
+            name:
+              - libcap2-bin
+            state: present
+
+        - name: Download Sunshine .deb (Ubuntu 24.04 build)
+          ansible.builtin.get_url:
+            url: "{{ sunshine_deb_url }}"
+            dest: "{{ sunshine_deb_path }}"
+            mode: "0644"
+          when: not ansible_check_mode
+
+        - name: Install Sunshine .deb
+          ansible.builtin.apt:
+            deb: "{{ sunshine_deb_path }}"
+            state: present
+          when: not ansible_check_mode
+
+        # KMS capture capability (Wayland usually needs this)
+        - name: Enable KMS capture capability (cap_sys_admin)
+          ansible.builtin.shell: |
+            set -euo pipefail
+            setcap cap_sys_admin+p "$(readlink -f "$(command -v sunshine)")"
+          args:
+            executable: /bin/bash
+          when:
+            - sunshine_enable_kms_capture | bool
+            - not ansible_check_mode
+
+        # systemd user service per Sunshine docs: systemctl --user enable sunshine
+        - name: Get UID for target_user
+          ansible.builtin.command: "id -u {{ target_user }}"
+          register: sunshine_uid
+          changed_when: false
+
+        - name: Enable linger for target_user (so user service can run without an active login)
+          ansible.builtin.command: "loginctl enable-linger {{ target_user }}"
+          changed_when: false
+
+        - name: Enable Sunshine user service on boot
+          become: true
+          become_user: "{{ target_user }}"
+          ansible.builtin.command: "systemctl --user enable sunshine"
+          environment:
+            XDG_RUNTIME_DIR: "/run/user/{{ sunshine_uid.stdout }}"
+            DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ sunshine_uid.stdout }}/bus"
+          changed_when: false
+          when: not ansible_check_mode
+
+        # Starting it immediately often requires the user session bus to exist, so don't fail the playbook if it isn't ready yet
+        - name: Start Sunshine user service now (best effort)
+          become: true
+          become_user: "{{ target_user }}"
+          ansible.builtin.command: "systemctl --user start sunshine"
+          environment:
+            XDG_RUNTIME_DIR: "/run/user/{{ sunshine_uid.stdout }}"
+            DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ sunshine_uid.stdout }}/bus"
+          changed_when: false
+          failed_when: false
+          when:
+            - sunshine_start_now | bool
+            - not ansible_check_mode
+
+        # Firewall (ports derived from Sunshine "port family" table, defaults around 47989)
+        - name: Allow Sunshine TCP ports (restricted)
+          community.general.ufw:
+            rule: allow
+            proto: tcp
+            port: "{{ item }}"
+            from_ip: "{{ remote_access_cidr }}"
+          loop: "{{ sunshine_tcp_ports }}"
+          when: sunshine_configure_ufw | bool
+
+        - name: Allow Sunshine UDP ports (restricted)
+          community.general.ufw:
+            rule: allow
+            proto: udp
+            port: "{{ item }}"
+            from_ip: "{{ remote_access_cidr }}"
+          loop: "{{ sunshine_udp_ports }}"
+          when: sunshine_configure_ufw | bool
+
     # --- Snap ---
     - name: Install snap-store
       community.general.snap:
@@ -390,19 +482,12 @@
             proto: tcp
             port: "3389"
 
-    - name: Allow SSH and Nomachine through firewall
-      block:
-        - name: Allow SSH from
-          community.general.ufw:
-            rule: allow
-            proto: tcp
-            port: "22"
 
-        - name: Allow Nomachine
-          community.general.ufw:
-            rule: allow
-            proto: tcp
-            port: "4000"
+    - name: Allow SSH from
+      community.general.ufw:
+        rule: allow
+        proto: tcp
+        port: "22"
 
   handlers:
     - name: Restart SSH
