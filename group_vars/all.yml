@@ -116,51 +116,66 @@ docker_ce_packages:
 
 apt_repos:
   - name: 1password
-    key_url: https://downloads.1password.com/linux/keys/1password.asc
-    key_path: /usr/share/keyrings/1password-archive-keyring.gpg
-    dearmor: true
-    repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/amd64 stable main"
+    types: [deb]
+    uris: "https://downloads.1password.com/linux/debian/amd64"
+    suites: [stable]
+    components: [main]
+    architectures: [amd64]
+    signed_by: "https://downloads.1password.com/linux/keys/1password.asc"
 
   - name: docker
-    key_url: https://download.docker.com/linux/ubuntu/gpg
-    key_path: /etc/apt/keyrings/docker.gpg
-    dearmor: true
-    repo: "deb [arch={{ apt_arch }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ docker_apt_release }} stable"
+    types: [deb]
+    uris: "https://download.docker.com/linux/ubuntu"
+    suites: ["{{ docker_apt_release }}"]
+    components: [stable]
+    architectures: ["{{ apt_arch }}"]
+    signed_by: "https://download.docker.com/linux/ubuntu/gpg"
 
   - name: cursor
-    key_url: https://downloads.cursor.com/keys/anysphere.asc
-    key_path: /etc/apt/keyrings/cursor.gpg
-    dearmor: true
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/cursor.gpg] https://downloads.cursor.com/aptrepo stable main"
+    types: [deb]
+    uris: "https://downloads.cursor.com/aptrepo"
+    suites: [stable]
+    components: [main]
+    architectures: [amd64]
+    signed_by: "https://downloads.cursor.com/keys/anysphere.asc"
 
   - name: github-cli
-    key_url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
-    key_path: /etc/apt/keyrings/githubcli-archive-keyring.gpg
-    repo: "deb [arch={{ apt_arch }} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+    types: [deb]
+    uris: "https://cli.github.com/packages"
+    suites: [stable]
+    components: [main]
+    architectures: ["{{ apt_arch }}"]
+    signed_by: "https://cli.github.com/packages/githubcli-archive-keyring.gpg"
 
   - name: google-chrome
-    key_url: https://dl-ssl.google.com/linux/linux_signing_key.pub
-    key_path: /etc/apt/keyrings/google.gpg
-    dearmor: true
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/google.gpg] https://dl.google.com/linux/chrome/deb/ stable main"
+    types: [deb]
+    uris: "https://dl.google.com/linux/chrome/deb/"
+    suites: [stable]
+    components: [main]
+    architectures: [amd64]
+    signed_by: "https://dl-ssl.google.com/linux/linux_signing_key.pub"
 
   - name: antigravity
-    key_url: https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg
-    key_path: /etc/apt/keyrings/antigravity-repo-key.gpg
-    dearmor: true
-    repo: "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main"
+    types: [deb]
+    uris: "https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/"
+    suites: [antigravity-debian]
+    components: [main]
+    signed_by: "https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg"
 
   - name: vscode
-    key_url: https://packages.microsoft.com/keys/microsoft.asc
-    key_path: /etc/apt/keyrings/packages.microsoft.gpg
-    dearmor: true
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main"
+    types: [deb]
+    uris: "https://packages.microsoft.com/repos/code"
+    suites: [stable]
+    components: [main]
+    architectures: [amd64]
+    signed_by: "https://packages.microsoft.com/keys/microsoft.asc"
 
   - name: charm
-    key_url: https://repo.charm.sh/apt/gpg.key
-    key_path: /etc/apt/keyrings/charm.gpg
-    dearmor: true
-    repo: "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *"
+    types: [deb]
+    uris: "https://repo.charm.sh/apt/"
+    suites: ["*"]
+    components: ["*"]
+    signed_by: "https://repo.charm.sh/apt/gpg.key"
 
 brew_packages:
   - lazygit

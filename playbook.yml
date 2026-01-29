@@ -15,37 +15,38 @@
         state: present
         update_cache: true
 
-    # --- APT Repositories ---
-    - name: Ensure keyrings directory exists
-      ansible.builtin.file:
-        path: /etc/apt/keyrings
-        state: directory
-        mode: "0755"
+    # --- APT Repositories (deb822 format) ---
+    # - name: Remove old-format APT repo files (migrated to deb822)
+    #   ansible.builtin.file:
+    #     path: "/etc/apt/sources.list.d/{{ item.name }}.list"
+    #     state: absent
+    #   loop: "{{ apt_repos }}"
 
-    - name: Add APT signing keys (direct)
-      ansible.builtin.get_url:
-        url: "{{ item.key_url }}"
-        dest: "{{ item.key_path }}"
-        mode: "0644"
-      loop: "{{ apt_repos }}"
-      when: not (item.dearmor | default(false))
+    # - name: Remove stale GPG keys from old approach
+    #   ansible.builtin.file:
+    #     path: "{{ item }}"
+    #     state: absent
+    #   loop:
+    #     - /usr/share/keyrings/1password-archive-keyring.gpg
+    #     - /etc/apt/keyrings/docker.gpg
+    #     - /etc/apt/keyrings/cursor.gpg
+    #     - /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    #     - /etc/apt/keyrings/google.gpg
+    #     - /etc/apt/keyrings/antigravity-repo-key.gpg
+    #     - /etc/apt/keyrings/packages.microsoft.gpg
+    #     - /etc/apt/keyrings/charm.gpg
 
-    - name: Add APT signing keys (dearmored)
-      ansible.builtin.shell: |
-        set -euo pipefail
-        curl -fsSL "{{ item.key_url }}" | gpg --dearmor --batch --yes -o "{{ item.key_path }}"
-      args:
-        executable: /bin/bash
-      loop: "{{ apt_repos }}"
-      when: item.dearmor | default(false)
-      changed_when: true
-
-    - name: Add APT repositories
-      ansible.builtin.apt_repository:
-        repo: "{{ item.repo }}"
-        filename: "{{ item.name }}"
+    - name: Configure APT repositories (deb822 format)
+      ansible.builtin.deb822_repository:
+        name: "{{ item.name }}"
+        types: "{{ item.types | default(['deb']) }}"
+        uris: "{{ item.uris }}"
+        suites: "{{ item.suites }}"
+        components: "{{ item.components | default(omit) }}"
+        architectures: "{{ item.architectures | default(omit) }}"
+        signed_by: "{{ item.signed_by }}"
         state: present
-        update_cache: false
+        enabled: true
       loop: "{{ apt_repos }}"
 
     - name: Ensure 1Password debsig policy directory exists
