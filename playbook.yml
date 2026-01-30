@@ -50,6 +50,12 @@
         name: "{{ base_packages }}"
         state: present
 
+    - name: Ensure QEMU guest agent is enabled and started
+      ansible.builtin.systemd:
+        name: qemu-guest-agent
+        enabled: true
+        state: started
+
     - name: Install third-party packages
       ansible.builtin.apt:
         name: "{{ third_party_packages }}"
