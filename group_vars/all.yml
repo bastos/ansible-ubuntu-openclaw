@@ -93,6 +93,9 @@ base_packages:
   - zlib1g-dev
   - gnome-tweaks
   - scrot
+  - nethogs
+  - iftop
+  - qemu-guest-agent
 
 third_party_packages:
   - 1password
@@ -104,6 +107,8 @@ third_party_packages:
   - gum
   - vhs
   - glow
+  - cuda-toolkit-12-6
+  - cuda-drivers
 
 docker_ce_packages:
   - docker-ce
@@ -113,6 +118,12 @@ docker_ce_packages:
   - docker-compose-plugin
 
 apt_repos:
+  - name: nvidia-cuda
+    types: [deb]
+    uris: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64"
+    suites: [/]
+    signed_by: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/3bf863cc.pub"
+
   - name: 1password
     types: [deb]
     uris: "https://downloads.1password.com/linux/debian/amd64"

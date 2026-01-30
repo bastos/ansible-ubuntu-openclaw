@@ -483,6 +483,30 @@
             port: "3389"
 
 
+    - name: NVIDIA
+      block:
+        - name: Add CUDA to PATH in bashrc
+          ansible.builtin.lineinfile:
+            path: "{{ target_user_home }}/.bashrc"
+            line: 'export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}'
+            owner: "{{ target_user }}"
+            group: "{{ target_user }}"
+            mode: "0644"
+
+        - name: Add CUDA libraries to LD_LIBRARY_PATH in bashrc
+          ansible.builtin.lineinfile:
+            path: "{{ target_user_home }}/.bashrc"
+            line: 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}'
+            owner: "{{ target_user }}"
+            group: "{{ target_user }}"
+            mode: "0644"
+
+    - name: Enable serial console for Proxmox xterm.js
+      ansible.builtin.systemd:
+        name: serial-getty@ttyS0.service
+        enabled: true
+        state: started
+
     - name: Allow SSH from
       community.general.ufw:
         rule: allow
