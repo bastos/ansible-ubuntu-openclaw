@@ -15,6 +15,7 @@ Options:
   --ts-auth-key <key>     Tailscale auth key (overrides 1Password lookup)
   --rdp-password <pass>   RDP password (optional; sets RDP_PASSWORD env var)
   --check                 Run ansible-playbook in check mode
+  --verbose               Run ansible-playbook with -vv
   -h, --help              Show this help
 
 Notes:
@@ -61,6 +62,7 @@ system_rdp_user="${SYSTEM_RDP_USER:-bastos}"
 system_rdp_password="${SYSTEM_RDP_PASSWORD:-}"
 extra_args=()
 check_mode=false
+verbose=false
 
 extract_password() {
   jq -r '
@@ -99,6 +101,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --check)
       check_mode=true
+      shift
+      ;;
+    --verbose)
+      verbose=true
       shift
       ;;
     -h|--help)
@@ -185,6 +191,9 @@ if [[ -z "$become_password" ]]; then
 fi
 if [[ "$check_mode" == "true" ]]; then
   ansible_args+=(--check)
+fi
+if [[ "$verbose" == "true" ]]; then
+  ansible_args+=(-vv)
 fi
 ansible_args+=("${extra_args[@]}")
 
