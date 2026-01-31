@@ -304,6 +304,22 @@
       changed_when: "'installed' in mise_result.stdout"
 
     # --- Agent CLIs ---
+    - name: Ollama
+      block:
+        - name: Install Ollama
+          ansible.builtin.shell: |
+            curl -fsSL https://ollama.com/install.sh | sh
+          args:
+            creates: /usr/local/bin/ollama
+          when: not ansible_check_mode
+
+        - name: Ensure Ollama service is enabled and started
+          ansible.builtin.systemd:
+            name: ollama
+            enabled: true
+            state: started
+          when: not ansible_check_mode
+
     - name: Install Claude CLI
       become: true
       become_user: "{{ target_user }}"
