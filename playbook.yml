@@ -74,6 +74,20 @@
         append: true
       # Note: docker group is created by the Docker package installed above
 
+    # --- User directories ---
+    - name: Code workspace directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0755"
+      loop:
+        - "{{ target_user_home }}/Code"
+        - "{{ target_user_home }}/Code/bin"
+        - "{{ target_user_home }}/Code/scripts"
+        - "{{ target_user_home }}/Code/work"
+
     # --- SSH ---
     - name: Install OpenSSH server (Remote Login)
       ansible.builtin.apt:
