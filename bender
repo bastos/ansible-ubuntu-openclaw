@@ -1,0 +1,5 @@
+[openclaws]
+ubuntu-openclaw ansible_host=192.168.88.61 ansible_user=bender
+
+[openclaws:vars]
+ansible_python_interpreter=/usr/bin/python3

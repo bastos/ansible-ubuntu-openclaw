@@ -1,6 +1,6 @@
 # Ansible Playbook
 
-Provisions Ubuntu workstations with development tools and configurations.
+Provisions OpenClaw with development tools and configurations.
 
 ## Quick Start
 
@@ -9,10 +9,22 @@ Provisions Ubuntu workstations with development tools and configurations.
 ansible-galaxy collection install -r requirements.yml
 
 # Edit inventory with your target host
-vim bastos-ubuntu-workstation
+vim bender
 
 # Run (prompts for sudo password)
 ansible-playbook playbook.yml -K
+
+# SSH into the machine
+ssh openclaw@[tailnet]
+
+# Run the onboarding script
+openclaw onboard --install-daemon
+
+# Run the doctor
+openclaw doctor
+
+# Open the dashboard
+openclaw dashboard
 ```
 
 ## Files
@@ -20,7 +32,7 @@ ansible-playbook playbook.yml -K
 ```
 ansible/
 ├── ansible.cfg              # Defaults (inventory, become)
-├── bastos-ubuntu-workstation # Inventory
+├── bender   # Inventory
 ├── playbook.yml             # Main playbook
 ├── group_vars/all.yml       # Variables
 └── requirements.yml         # Required collections
@@ -28,11 +40,11 @@ ansible/
 
 ## Inventory Setup
 
-Edit `bastos-ubuntu-workstation` with your target machine:
+Edit `bender` with your target machine:
 
 ```ini
-[workstations]
-ubuntu-workstation ansible_host=192.168.1.100 ansible_user=bastos
+[openclaws]
+ubuntu-openclaw ansible_host=192.168.1.100 ansible_user=bender
 ```
 
 ## Customization

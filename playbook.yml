@@ -1,11 +1,10 @@
 ---
-- name: Configure Ubuntu Workstation
-  hosts: workstations
+- name: Configure OpenClaw
+  hosts: openclaws
   become: true
   gather_facts: true
 
   tasks:
-    # --- Prerequisites (needed for repo setup) ---
     - name: Install prerequisites for repository setup
       ansible.builtin.apt:
         name:
@@ -15,7 +14,6 @@
         state: present
         update_cache: true
 
-    # --- APT Packages ---
     - name: Configure APT repositories (deb822 format)
       ansible.builtin.deb822_repository:
         name: "{{ item.name }}"
@@ -50,6 +48,11 @@
         name: "{{ base_packages }}"
         state: present
 
+    - name: Install QEMU guest agent
+      ansible.builtin.apt:
+        name: qemu-guest-agent
+        state: present
+
     - name: Ensure QEMU guest agent is enabled and started
       ansible.builtin.systemd:
         name: qemu-guest-agent
@@ -66,7 +69,6 @@
         name: "{{ docker_ce_packages }}"
         state: present
 
-    # --- Docker ---
     - name: Add user to docker group
       ansible.builtin.user:
         name: "{{ target_user }}"
@@ -74,21 +76,6 @@
         append: true
       # Note: docker group is created by the Docker package installed above
 
-    # --- User directories ---
-    - name: Code workspace directories
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        owner: "{{ target_user }}"
-        group: "{{ target_user }}"
-        mode: "0755"
-      loop:
-        - "{{ target_user_home }}/Code"
-        - "{{ target_user_home }}/Code/bin"
-        - "{{ target_user_home }}/Code/scripts"
-        - "{{ target_user_home }}/Code/work"
-
-    # --- SSH ---
     - name: Install OpenSSH server (Remote Login)
       ansible.builtin.apt:
         name: openssh-server
@@ -123,7 +110,6 @@
         mode: "0644"
       notify: Restart SSH
 
-    # --- NoMachine ---
     - name: NoMachine
       block:
         - name: Check if NoMachine is running
@@ -155,97 +141,16 @@
             proto: tcp
             port: "4000"
 
-    # --- Sunshine (Moonlight Host) ---
-    - name: Sunshine
-      block:
-        - name: Install prerequisites for Sunshine
-          ansible.builtin.apt:
-            name:
-              - libcap2-bin
-            state: present
-
-        - name: Download Sunshine .deb (Ubuntu 24.04 build)
-          ansible.builtin.get_url:
-            url: "{{ sunshine_deb_url }}"
-            dest: "{{ sunshine_deb_path }}"
-            mode: "0644"
-          when: not ansible_check_mode
-
-        - name: Install Sunshine .deb
-          ansible.builtin.apt:
-            deb: "{{ sunshine_deb_path }}"
-            state: present
-          when: not ansible_check_mode
-
-        # KMS capture capability (Wayland usually needs this)
-        - name: Enable KMS capture capability (cap_sys_admin)
-          ansible.builtin.shell: |
-            set -euo pipefail
-            setcap cap_sys_admin+p "$(readlink -f "$(command -v sunshine)")"
-          args:
-            executable: /bin/bash
-          when:
-            - sunshine_enable_kms_capture | bool
-            - not ansible_check_mode
-
-        # systemd user service per Sunshine docs: systemctl --user enable sunshine
-        - name: Get UID for target_user
-          ansible.builtin.command: "id -u {{ target_user }}"
-          register: sunshine_uid
-          changed_when: false
-
-        - name: Enable linger for target_user (so user service can run without an active login)
-          ansible.builtin.command: "loginctl enable-linger {{ target_user }}"
-          changed_when: false
-
-        - name: Enable Sunshine user service on boot
-          become: true
-          become_user: "{{ target_user }}"
-          ansible.builtin.command: "systemctl --user enable sunshine"
-          environment:
-            XDG_RUNTIME_DIR: "/run/user/{{ sunshine_uid.stdout }}"
-            DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ sunshine_uid.stdout }}/bus"
-          changed_when: false
-          when: not ansible_check_mode
-
-        # Starting it immediately often requires the user session bus to exist, so don't fail the playbook if it isn't ready yet
-        - name: Start Sunshine user service now (best effort)
-          become: true
-          become_user: "{{ target_user }}"
-          ansible.builtin.command: "systemctl --user start sunshine"
-          environment:
-            XDG_RUNTIME_DIR: "/run/user/{{ sunshine_uid.stdout }}"
-            DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ sunshine_uid.stdout }}/bus"
-          changed_when: false
-          failed_when: false
-          when:
-            - sunshine_start_now | bool
-            - not ansible_check_mode
-
-        # Firewall (ports derived from Sunshine "port family" table, defaults around 47989)
-        - name: Allow Sunshine TCP ports (restricted)
-          community.general.ufw:
-            rule: allow
-            proto: tcp
-            port: "{{ item }}"
-            from_ip: "{{ remote_access_cidr }}"
-          loop: "{{ sunshine_tcp_ports }}"
-          when: sunshine_configure_ufw | bool
-
-        - name: Allow Sunshine UDP ports (restricted)
-          community.general.ufw:
-            rule: allow
-            proto: udp
-            port: "{{ item }}"
-            from_ip: "{{ remote_access_cidr }}"
-          loop: "{{ sunshine_udp_ports }}"
-          when: sunshine_configure_ufw | bool
-
-    # --- Snap ---
     - name: Install snap-store
       community.general.snap:
         name: snap-store
         state: present
+
+    - name: Install snap packages
+      community.general.snap:
+        name: "{{ snap_packages }}"
+        state: present
+      when: snap_packages | length > 0
 
     - name: Homebrew
       block:
@@ -304,6 +209,32 @@
             group: "{{ target_user }}"
             mode: "0644"
 
+    - name: Configure user environment variables
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.blockinfile:
+        path: "{{ target_user_home }}/.bashrc"
+        create: true
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0644"
+        marker: "# {mark} ANSIBLE OPENCLAW ENV"
+        block: |
+          {% for item in env_vars | dictsort %}
+          export {{ item.0 }}={{ item.1 | quote }}
+          {% endfor %}
+      when: env_vars | length > 0
+
+    - name: Source user bashrc for this task session
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        source "{{ target_user_home }}/.bashrc"
+      args:
+        executable: /bin/bash
+      changed_when: false
+      when: env_vars | length > 0
+
     - name: Install mise tools
       become: true
       become_user: "{{ target_user }}"
@@ -317,23 +248,6 @@
       register: mise_result
       changed_when: "'installed' in mise_result.stdout"
 
-    # --- Agent CLIs ---
-    - name: Ollama
-      block:
-        - name: Install Ollama
-          ansible.builtin.shell: |
-            curl -fsSL https://ollama.com/install.sh | sh
-          args:
-            creates: /usr/local/bin/ollama
-          when: not ansible_check_mode
-
-        - name: Ensure Ollama service is enabled and started
-          ansible.builtin.systemd:
-            name: ollama
-            enabled: true
-            state: started
-          when: not ansible_check_mode
-
     - name: Install Claude CLI
       become: true
       become_user: "{{ target_user }}"
@@ -342,6 +256,15 @@
       args:
         creates: "{{ target_user_home }}/.claude/local/bin/claude"
 
+    - name: Install Cursor CLI
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        curl -fsSL https://cursor.com/install | bash
+      args:
+        creates: "{{ target_user_home }}/.local/bin/agent"
+
+    # -- NPM Packages ---
     - name: Install global npm packages
       become: true
       become_user: "{{ target_user }}"
@@ -353,7 +276,6 @@
         PATH: "{{ target_user_home }}/.local/share/mise/shims:{{ target_user_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
       loop: "{{ npm_global_packages }}"
 
-    # --- Tailscale ---
     - name: Tailscale
       block:
         - name: Install Tailscale
@@ -409,133 +331,6 @@
           args:
             executable: /bin/bash
           changed_when: false
-
-    # --- Remote Desktop ---
-    - name: Remote Desktop
-      block:
-        - name: Install GNOME Remote Desktop + winpr-utils (system RDP)
-          ansible.builtin.apt:
-            name:
-              - gnome-remote-desktop
-              - winpr-utils
-            state: present
-            update_cache: true
-
-        - name: Reload systemd units (in case packages updated unit files)
-          ansible.builtin.command: systemctl daemon-reload
-          changed_when: false
-
-        - name: Ensure gnome-remote-desktop TLS directory exists
-          ansible.builtin.file:
-            path: /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop
-            state: directory
-            owner: gnome-remote-desktop
-            group: gnome-remote-desktop
-            mode: "0700"
-
-        - name: Generate system RDP TLS cert/key (winpr-makecert)
-          become: true
-          become_user: gnome-remote-desktop
-          ansible.builtin.command:
-            argv:
-              - winpr-makecert
-              - -silent
-              - -rdp
-              - -path
-              - /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop
-              - tls
-          args:
-            creates: /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop/tls.key
-          changed_when: true
-
-        - name: Configure system RDP TLS key
-          ansible.builtin.command:
-            argv:
-              - grdctl
-              - --system
-              - rdp
-              - set-tls-key
-              - /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop/tls.key
-          changed_when: true
-
-        - name: Configure system RDP TLS cert
-          ansible.builtin.command:
-            argv:
-              - grdctl
-              - --system
-              - rdp
-              - set-tls-cert
-              - /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop/tls.crt
-          changed_when: true
-
-        - name: Set system RDP gate credentials (required for remote login)
-          ansible.builtin.command:
-            argv:
-              - grdctl
-              - --system
-              - rdp
-              - set-credentials
-              - "{{ system_rdp_user }}"
-              - "{{ system_rdp_password }}"
-          when: system_rdp_password | length > 0
-          no_log: true
-          changed_when: true
-
-        - name: Enable system RDP (GDM remote login)
-          ansible.builtin.command: grdctl --system rdp enable
-          changed_when: true
-
-        - name: Check grdctl RDP subcommands
-          ansible.builtin.command: grdctl --system rdp --help
-          register: grdctl_rdp_help
-          changed_when: false
-          failed_when: false
-
-        - name: Allow remote control over RDP (not view-only) when supported
-          become: true
-          ansible.builtin.command: grdctl --system rdp disable-view-only
-          when: >-
-            (grdctl_rdp_help.stdout is search("disable-view-only")) or
-            (grdctl_rdp_help.stderr is search("disable-view-only"))
-          changed_when: false
-          failed_when: false
-
-        - name: Ensure GNOME Remote Desktop is enabled and started
-          ansible.builtin.systemd:
-            name: "{{ item }}"
-            enabled: true
-            state: restarted
-          loop:
-            - gnome-remote-desktop
-
-        - name: Ensure graphical target is default
-          ansible.builtin.command: systemctl set-default graphical.target
-          changed_when: false
-
-        - name: Allow RDP
-          community.general.ufw:
-            rule: allow
-            proto: tcp
-            port: "3389"
-
-
-    - name: NVIDIA
-      block:
-        - name: Add CUDA to PATH in bashrc
-          ansible.builtin.lineinfile:
-            path: "{{ target_user_home }}/.bashrc"
-            line: 'export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}'
-            owner: "{{ target_user }}"
-            group: "{{ target_user }}"
-            mode: "0644"
-
-        - name: Add CUDA libraries to LD_LIBRARY_PATH in bashrc
-          ansible.builtin.lineinfile:
-            path: "{{ target_user_home }}/.bashrc"
-            line: 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}'
-            owner: "{{ target_user }}"
-            group: "{{ target_user }}"
-            mode: "0644"
 
     - name: Enable serial console for Proxmox xterm.js
       ansible.builtin.systemd:

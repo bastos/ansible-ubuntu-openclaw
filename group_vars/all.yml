@@ -1,5 +1,5 @@
 ---
-target_user: bastos
+target_user: bender
 target_user_home: "/home/{{ target_user }}"
 brew_prefix: /home/linuxbrew/.linuxbrew
 
@@ -30,21 +30,12 @@ nomachine_deb_path: /tmp/nomachine.deb
 #   ansible-playbook ... -e tailscale_authkey=tskey-...
 tailscale_authkey: "{{ lookup('ansible.builtin.env', 'TAILSCALE_AUTHKEY') | default('', true) }}"
 # Optional: set a stable hostname in Tailscale
-tailscale_hostname: ""
+tailscale_hostname: "bender"
 # Optional: extra args for `tailscale up`, e.g. "--ssh --accept-routes"
 tailscale_up_extra_args: "--ssh --accept-routes"
 # Optional: local Unix username allowed to operate tailscaled without sudo
 # This is applied via `tailscale up --operator=<user>`.
 tailscale_operator_user: "{{ target_user }}"
-# Optional: RDP password for GNOME Remote Desktop (recommended to pass via env)
-#   RDP_PASSWORD='...' ansible-playbook ...
-rdp_password: "{{ lookup('ansible.builtin.env', 'RDP_PASSWORD') | default('', true) }}"
-# Optional: restrict RDP/SSH to this CIDR (LAN or Tailscale), defaults to your LAN
-remote_access_cidr: "192.168.0.0/16"
-# System RDP (GDM Remote Login) gate credentials (recommended to pass via env)
-#   SYSTEM_RDP_USER='rdp' SYSTEM_RDP_PASSWORD='...' ansible-playbook ...
-system_rdp_user: "{{ lookup('ansible.builtin.env', 'SYSTEM_RDP_USER') | default(target_user, true) }}"
-system_rdp_password: "{{ lookup('ansible.builtin.env', 'SYSTEM_RDP_PASSWORD') | default(rdp_password, true) }}"
 
 base_packages:
   - ca-certificates
@@ -96,19 +87,16 @@ base_packages:
   - nethogs
   - iftop
   - qemu-guest-agent
+  - libvips
+  - topydo
 
 third_party_packages:
   - 1password
-  - cursor
   - gh
   - google-chrome-stable
-  - antigravity
-  - code
   - gum
   - vhs
   - glow
-  - cuda-toolkit-12-6
-  - cuda-drivers
 
 docker_ce_packages:
   - docker-ce
@@ -118,12 +106,6 @@ docker_ce_packages:
   - docker-compose-plugin
 
 apt_repos:
-  - name: nvidia-cuda
-    types: [deb]
-    uris: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64"
-    suites: [/]
-    signed_by: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/3bf863cc.pub"
-
   - name: 1password
     types: [deb]
     uris: "https://downloads.1password.com/linux/debian/amd64"
@@ -139,14 +121,6 @@ apt_repos:
     components: [stable]
     architectures: ["{{ apt_arch }}"]
     signed_by: "https://download.docker.com/linux/ubuntu/gpg"
-
-  - name: cursor
-    types: [deb]
-    uris: "https://downloads.cursor.com/aptrepo"
-    suites: [stable]
-    components: [main]
-    architectures: [amd64]
-    signed_by: "https://downloads.cursor.com/keys/anysphere.asc"
 
   - name: github-cli
     types: [deb]
@@ -164,21 +138,6 @@ apt_repos:
     architectures: [amd64]
     signed_by: "https://dl-ssl.google.com/linux/linux_signing_key.pub"
 
-  - name: antigravity
-    types: [deb]
-    uris: "https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/"
-    suites: [antigravity-debian]
-    components: [main]
-    signed_by: "https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg"
-
-  - name: vscode
-    types: [deb]
-    uris: "https://packages.microsoft.com/repos/code"
-    suites: [stable]
-    components: [main]
-    architectures: [amd64]
-    signed_by: "https://packages.microsoft.com/keys/microsoft.asc"
-
   - name: charm
     types: [deb]
     uris: "https://repo.charm.sh/apt/"
@@ -190,6 +149,11 @@ brew_packages:
   - lazygit
   - tmuxinator
   - 1password-cli
+  - summarize
+  - wacli
+  - openai-whisper
+  - sqlite
+  - obsidian-cli
 
 mise_tools:
   - node@25
@@ -199,20 +163,16 @@ mise_tools:
   - uv
   - rust
 
+env_vars:
+  SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
+
+snap_packages:
+  - obsidian
+
 npm_global_packages:
   - "@steipete/bird"
   - "@google/gemini-cli"
   - "@openai/codex"
-  - opencode-ai
-
-# --- Sunshine ---
-sunshine_arch: "{{ 'amd64' if apt_arch == 'amd64' else 'arm64' }}"
-sunshine_deb_url: "https://github.com/LizardByte/Sunshine/releases/latest/download/sunshine-ubuntu-24.04-{{ sunshine_arch }}.deb"
-sunshine_deb_path: "/tmp/sunshine.deb"
-sunshine_enable_kms_capture: true
-sunshine_start_now: true
-# You already install ufw in base_packages, so this can be true
-sunshine_configure_ufw: true
-# Default port family (config port=47989) table from Sunshine docs
-sunshine_tcp_ports: [47984, 47989, 47990, 48010]
-sunshine_udp_ports: [5353, 47998, 47999, 48000, 48002, 48010]
+  - "opencode-ai"
+  - "openclaw@latest"
+  - "clawhub"
