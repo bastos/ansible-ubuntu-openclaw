@@ -283,6 +283,20 @@
         PATH: "{{ target_user_home }}/.local/share/mise/shims:{{ target_user_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
       loop: "{{ npm_global_packages }}"
 
+    # -- Bun global packages ---
+    - name: Install global Bun packages
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.shell: |
+        eval "$({{ target_user_home }}/.local/bin/mise activate bash)"
+        bun install -g {{ item | quote }}
+      args:
+        executable: /bin/bash
+      environment:
+        PATH: "{{ target_user_home }}/.local/share/mise/shims:{{ target_user_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+      loop: "{{ bun_global_packages }}"
+      when: bun_global_packages | length > 0
+
     - name: Tailscale
       block:
         - name: Install Tailscale

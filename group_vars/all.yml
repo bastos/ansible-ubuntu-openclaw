@@ -151,6 +151,7 @@ brew_packages:
   - 1password-cli
   - sqlite
   - obsidian-cli
+  - steipete/tap/gogcli
 
 mise_tools:
   - node@25
@@ -175,3 +176,7 @@ npm_global_packages:
   - "opencode-ai"
   - "openclaw@latest"
   - "clawhub"
+
+# Global Bun packages (names or URLs, e.g. https://github.com/tobi/qmd)
+bun_global_packages:
+  - https://github.com/tobi/qmd
