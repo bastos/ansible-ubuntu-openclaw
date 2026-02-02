@@ -152,6 +152,13 @@
         state: present
       when: snap_packages | length > 0
 
+    - name: Install snap packages (classic confinement)
+      community.general.snap:
+        name: "{{ snap_classic_packages }}"
+        classic: true
+        state: present
+      when: snap_classic_packages | length > 0
+
     - name: Homebrew
       block:
         - name: Ensure Homebrew prefix directories exist

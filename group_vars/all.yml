@@ -149,9 +149,6 @@ brew_packages:
   - lazygit
   - tmuxinator
   - 1password-cli
-  - summarize
-  - wacli
-  - openai-whisper
   - sqlite
   - obsidian-cli
 
@@ -166,7 +163,9 @@ mise_tools:
 env_vars:
   SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
 
-snap_packages:
+snap_packages: []
+
+snap_classic_packages:
   - obsidian
 
 npm_global_packages:
