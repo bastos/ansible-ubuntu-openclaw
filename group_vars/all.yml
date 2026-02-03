@@ -176,6 +176,7 @@ npm_global_packages:
   - "opencode-ai"
   - "openclaw@latest"
   - "clawhub"
+  - "@steipete/summarize"
 
 # Global Bun packages (names or URLs, e.g. https://github.com/tobi/qmd)
 bun_global_packages:
