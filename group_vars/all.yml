@@ -24,6 +24,9 @@ ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK5YDl9pSsedMatSLLjbOgMVutC
 nomachine_deb_url: "https://web9001.nomachine.com/download/9.3/Linux/nomachine_9.3.7_1_amd64.deb"
 nomachine_deb_path: /tmp/nomachine.deb
 
+obsidian_deb_url: "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.11.5/obsidian_1.11.5_amd64.deb"
+obsidian_deb_path: /tmp/obsidian.deb
+
 # Optional: pass via env (recommended for one-time use keys)
 #   TAILSCALE_AUTHKEY=tskey-... ansible-playbook ...
 # Or via extra-vars:
@@ -166,8 +169,7 @@ env_vars:
 
 snap_packages: []
 
-snap_classic_packages:
-  - obsidian
+snap_classic_packages: []
 
 npm_global_packages:
   - "@steipete/bird"

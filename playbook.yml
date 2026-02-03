@@ -141,6 +141,19 @@
             proto: tcp
             port: "4000"
 
+    - name: Download Obsidian
+      ansible.builtin.get_url:
+        url: "{{ obsidian_deb_url }}"
+        dest: "{{ obsidian_deb_path }}"
+        mode: "0644"
+      when: not ansible_check_mode
+
+    - name: Install Obsidian
+      ansible.builtin.apt:
+        deb: "{{ obsidian_deb_path }}"
+        state: present
+      when: not ansible_check_mode
+
     - name: Install snap-store
       community.general.snap:
         name: snap-store
