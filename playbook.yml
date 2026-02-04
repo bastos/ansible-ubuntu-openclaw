@@ -64,11 +64,6 @@
         name: "{{ third_party_packages }}"
         state: present
 
-    - name: Install Docker packages
-      ansible.builtin.apt:
-        name: "{{ docker_ce_packages }}"
-        state: present
-
     - name: Add user to docker group
       ansible.builtin.user:
         name: "{{ target_user }}"
@@ -256,7 +251,7 @@
         marker: "# {mark} ANSIBLE OPENCLAW ENV"
         block: |
           {% for item in env_vars | dictsort %}
-          export {{ item.0 }}={{ item.1 | quote }}
+          export {{ item.0 }}={{ item.1 }}
           {% endfor %}
       when: env_vars | length > 0
 

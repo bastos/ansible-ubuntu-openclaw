@@ -52,8 +52,6 @@ ubuntu-openclaw ansible_host=192.168.1.100 ansible_user=bender
 Edit `group_vars/all.yml` to modify:
 
 - `base_packages` / `third_party_packages` — APT packages
-- `ruby_build_packages` — Ruby build dependencies
-- `docker_ce_packages` — Docker package set
 - `apt_repos` — Third-party repositories
 - `brew_packages` — Homebrew packages
 - `brew_prefix` — Homebrew install prefix

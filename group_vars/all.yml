@@ -103,8 +103,6 @@ third_party_packages:
   - gum
   - vhs
   - glow
-
-docker_ce_packages:
   - docker-ce
   - docker-ce-cli
   - containerd.io
@@ -158,6 +156,7 @@ brew_packages:
   - sqlite
   - obsidian-cli
   - steipete/tap/gogcli
+  - dicklesworthstone/tap/bv
 
 mise_tools:
   - node@25
@@ -170,6 +169,7 @@ mise_tools:
 env_vars:
   SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
   NODE_OPTIONS: "--disable-warning=DEP0040"
+  PATH: "$HOME/.bun/bin:$PATH"
 
 snap_packages: []
 
@@ -183,6 +183,7 @@ npm_global_packages:
   - "openclaw@latest"
   - "clawhub"
   - "@steipete/summarize"
+  - "@beads/bd"
 
 # Global Bun packages (names or URLs, e.g. https://github.com/tobi/qmd)
 bun_global_packages:

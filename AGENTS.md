@@ -28,13 +28,34 @@ Run commands from the repository root:
 There are no automated tests. Validate changes by running the playbook against a disposable VM, then re-run to confirm idempotency (no unexpected changes on the second pass). Use `--check --diff` for quick validation before applying changes.
 
 ## Commit & Pull Request Guidelines
-This repo has no commit history yet, so no established convention exists. Use concise, imperative summaries (e.g., `Add mise tooling`, `Update base packages`).
+This repo has no commit history yet, so no established convention exists. Use concise, imperative summaries (e.g., `add mise tooling`, `update base packages`).
 
 PRs should include:
 
 - A short summary of behavior changes.
 - Any updates to `group_vars/all.yml` or inventory expectations.
 - Notes about required host OS versions or dependencies.
+
+### Commit Format
+
+Use Conventional Commits:
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+Types are as follows: feat, fix, refactor, test, docs, chore, style
+
+**Examples:**
+```
+feat(tvod): add Roku refund support
+fix(auth): handle expired tokens correctly
+refactor(payments): convert to service pattern
+```
 
 ## Security & Configuration Tips
 - Update `ssh_public_key` and `target_user` in `group_vars/all.yml` before running.
