@@ -95,6 +95,7 @@ base_packages:
   - libvips
   - topydo
   - libfuse2
+  - glances
 
 third_party_packages:
   - 1password
