@@ -141,18 +141,33 @@
             proto: tcp
             port: "4000"
 
-    - name: Download Obsidian
-      ansible.builtin.get_url:
-        url: "{{ obsidian_deb_url }}"
-        dest: "{{ obsidian_deb_path }}"
-        mode: "0644"
-      when: not ansible_check_mode
+    - name: Obsidian
+      block:
+        - name: Ensure ~/bin exists for Obsidian AppImage
+          ansible.builtin.file:
+            path: "{{ target_user_home }}/bin"
+            state: directory
+            owner: "{{ target_user }}"
+            group: "{{ target_user }}"
+            mode: "0755"
 
-    - name: Install Obsidian
-      ansible.builtin.apt:
-        deb: "{{ obsidian_deb_path }}"
-        state: present
-      when: not ansible_check_mode
+        - name: Download Obsidian AppImage
+          ansible.builtin.get_url:
+            url: "{{ obsidian_appimage_url }}"
+            dest: "{{ obsidian_appimage_path }}"
+            owner: "{{ target_user }}"
+            group: "{{ target_user }}"
+            mode: "0755"
+          when: not ansible_check_mode
+
+        - name: Create Obsidian AppImage symlink
+          ansible.builtin.file:
+            src: "{{ obsidian_appimage_path }}"
+            dest: "{{ obsidian_appimage_link }}"
+            owner: "{{ target_user }}"
+            group: "{{ target_user }}"
+            force: true
+            state: link
 
     - name: Install snap-store
       community.general.snap:
