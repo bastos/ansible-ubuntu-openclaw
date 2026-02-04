@@ -95,7 +95,6 @@ base_packages:
   - libvips
   - topydo
   - libfuse2
-  - glances
 
 third_party_packages:
   - 1password
@@ -167,6 +166,7 @@ mise_tools:
   - ruby@3.4
   - uv
   - rust
+  - ruff
 
 env_vars:
   SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
