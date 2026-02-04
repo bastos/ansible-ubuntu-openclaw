@@ -166,6 +166,7 @@ mise_tools:
 
 env_vars:
   SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
+  NODE_OPTIONS: "--disable-warning=DEP0040"
 
 snap_packages: []
 
