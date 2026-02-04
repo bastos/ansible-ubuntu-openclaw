@@ -156,7 +156,6 @@ brew_packages:
   - sqlite
   - obsidian-cli
   - steipete/tap/gogcli
-  - dicklesworthstone/tap/bv
   - beads
 
 mise_tools:
