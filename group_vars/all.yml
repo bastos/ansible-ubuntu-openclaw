@@ -94,6 +94,7 @@ base_packages:
   - qemu-guest-agent
   - libvips
   - topydo
+  - libfuse2
 
 third_party_packages:
   - 1password
