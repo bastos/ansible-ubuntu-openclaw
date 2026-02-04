@@ -157,6 +157,7 @@ brew_packages:
   - obsidian-cli
   - steipete/tap/gogcli
   - dicklesworthstone/tap/bv
+  - beads
 
 mise_tools:
   - node@25
