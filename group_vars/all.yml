@@ -24,8 +24,8 @@ ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK5YDl9pSsedMatSLLjbOgMVutC
 nomachine_deb_url: "https://web9001.nomachine.com/download/9.3/Linux/nomachine_9.3.7_1_amd64.deb"
 nomachine_deb_path: /tmp/nomachine.deb
 
-obsidian_appimage_url: "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.11.5/Obsidian-1.11.5-arm64.AppImage"
-obsidian_appimage_name: "Obsidian-1.11.5-arm64.AppImage"
+obsidian_appimage_url: "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.11.5/Obsidian-1.11.5.AppImage"
+obsidian_appimage_name: "Obsidian-1.11.5.AppImage"
 obsidian_appimage_path: "{{ target_user_home }}/bin/{{ obsidian_appimage_name }}"
 obsidian_appimage_link: "{{ target_user_home }}/bin/Obsidian.AppImage"
 
