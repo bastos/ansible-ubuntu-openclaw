@@ -30,7 +30,7 @@ Options:
 
 Notes:
   - Default precedence: argument > environment > 1Password.
-  - Env vars used: TAILSCALE_AUTHKEY, OP_SERVICE_ACCCOUNT_TOKEN,
+  - Env vars used: TAILSCALE_AUTHKEY, OP_SERVICE_ACCOUNT_TOKEN,
     ANSIBLE_BECOME_PASS.
   - Use --force-env to require env vars and skip 1Password.
   - Use --force-1p to read all secrets from 1Password, ignoring args/env.
@@ -38,7 +38,7 @@ Notes:
   - Tailscale auth key: 1Password item ID rawvqo5ow2jdbi5u2bjbhshkgu.
   - OP service account token: 1Password item ID mz2pv43wg5qdl2qmkdghkuz7w4.
   - Sudo password: 1Password item ID l77hcnkfqwyrm4qlyfauqliyuy.
-  - This script exports TAILSCALE_AUTHKEY, OP_SERVICE_ACCCOUNT_TOKEN,
+  - This script exports TAILSCALE_AUTHKEY, OP_SERVICE_ACCOUNT_TOKEN,
     and, when available, ANSIBLE_BECOME_PASS for playbook.yml.
 USAGE
 }
@@ -80,7 +80,7 @@ fetch_item_json_cached() {
 }
 
 ts_auth_key=""
-op_service_acccount_token=""
+OP_SERVICE_ACCOUNT_TOKEN=""
 become_password=""
 extra_args=()
 check_mode=false
@@ -159,11 +159,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --op-service-account-token|--op-service-acccount-token)
       [[ $# -ge 2 ]] || die "--op-service-account-token requires a value"
-      op_service_acccount_token="$2"
+      OP_SERVICE_ACCOUNT_TOKEN="$2"
       shift 2
       ;;
     --op-service-account-token=*|--op-service-acccount-token=*)
-      op_service_acccount_token="${1#*=}"
+      OP_SERVICE_ACCOUNT_TOKEN="${1#*=}"
       shift
       ;;
     --force-env)
@@ -220,13 +220,13 @@ ts_auth_key="$(resolve_single_secret \
   "tailscale|auth|key" \
   "pass --ts-auth-key or set TAILSCALE_AUTHKEY")"
 
-op_service_acccount_token="$(resolve_single_secret \
+OP_SERVICE_ACCOUNT_TOKEN="$(resolve_single_secret \
   "OP service account token" \
-  "$op_service_acccount_token" \
-  "OP_SERVICE_ACCCOUNT_TOKEN" \
+  "$OP_SERVICE_ACCOUNT_TOKEN" \
+  "OP_SERVICE_ACCOUNT_TOKEN" \
   "$OP_SERVICE_ACCCOUNT_ITEM_ID" \
   "service|account|token" \
-  "pass --op-service-account-token or set OP_SERVICE_ACCCOUNT_TOKEN")"
+  "pass --op-service-account-token or set OP_SERVICE_ACCOUNT_TOKEN")"
 
 become_password="$(resolve_single_secret \
   "sudo password" \
@@ -237,8 +237,8 @@ become_password="$(resolve_single_secret \
   "set ANSIBLE_BECOME_PASS")"
 
 env_vars=("TAILSCALE_AUTHKEY=$ts_auth_key")
-if [[ -n "$op_service_acccount_token" ]]; then
-  env_vars+=("OP_SERVICE_ACCCOUNT_TOKEN=$op_service_acccount_token")
+if [[ -n "$OP_SERVICE_ACCOUNT_TOKEN" ]]; then
+  env_vars+=("OP_SERVICE_ACCOUNT_TOKEN=$OP_SERVICE_ACCOUNT_TOKEN")
 fi
 if [[ -n "$become_password" ]]; then
   env_vars+=("ANSIBLE_BECOME_PASS=$become_password")

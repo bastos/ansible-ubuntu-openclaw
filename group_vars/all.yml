@@ -171,7 +171,7 @@ env_vars:
   SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
   NODE_OPTIONS: "--disable-warning=DEP0040"
   PATH: "$HOME/.bun/bin:$PATH"
-  OP_SERVICE_ACCCOUNT_TOKEN: "{{ lookup('ansible.builtin.env', 'OP_SERVICE_ACCCOUNT_TOKEN') | default('', true) }}"
+  OP_SERVICE_ACCOUNT_TOKEN: "{{ lookup('ansible.builtin.env', 'OP_SERVICE_ACCOUNT_TOKEN') | default('', true) }}"
 
 snap_packages: []
 
