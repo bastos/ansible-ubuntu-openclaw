@@ -3,9 +3,14 @@ set -euo pipefail
 
 OP_TS_ITEM_ID="rawvqo5ow2jdbi5u2bjbhshkgu"
 OP_BECOME_ITEM_ID="l77hcnkfqwyrm4qlyfauqliyuy"
+OP_SERVICE_ACCCOUNT_ITEM_ID="mz2pv43wg5qdl2qmkdghkuz7w4"
 # Optional overrides; leave empty to use op defaults.
 OP_ACCOUNT="${OP_ACCOUNT:-}"
 OP_VAULT="${OP_VAULT:-}"
+force_env=false
+force_1p=false
+source_mode="auto"
+print_env=false
 
 usage() {
   cat <<'USAGE'
@@ -13,18 +18,28 @@ Usage: ./run.sh [options] [-- <ansible-playbook-args>]
 
 Options:
   --ts-auth-key <key>     Tailscale auth key (overrides 1Password lookup)
+  --op-service-account-token <token>
+                           1Password service account token (overrides 1Password lookup)
+                           Alias: --op-service-acccount-token
+  --force-env             Force secrets from environment variables
+  --force-1p              Force secrets from 1Password (ignores args/env)
+  --dry-run, --print-env  Resolve secrets and print exports/command only
   --check                 Run ansible-playbook in check mode
   --verbose               Run ansible-playbook with -vv
   -h, --help              Show this help
 
 Notes:
-  - If --ts-auth-key is not provided, the script reads it from 1Password item
-    ID rawvqo5ow2jdbi5u2bjbhshkgu using the `op` CLI.
-  - If ANSIBLE_BECOME_PASS is not set, the script reads the become/sudo
-    password from 1Password item ID l77hcnkfqwyrm4qlyfauqliyuy (only when
-    needed; otherwise falls back to -K).
-  - This script exports TAILSCALE_AUTHKEY and, when available,
-    ANSIBLE_BECOME_PASS for playbook.yml.
+  - Default precedence: argument > environment > 1Password.
+  - Env vars used: TAILSCALE_AUTHKEY, OP_SERVICE_ACCCOUNT_TOKEN,
+    ANSIBLE_BECOME_PASS.
+  - Use --force-env to require env vars and skip 1Password.
+  - Use --force-1p to read all secrets from 1Password, ignoring args/env.
+  - Use --dry-run/--print-env to show what would run without executing.
+  - Tailscale auth key: 1Password item ID rawvqo5ow2jdbi5u2bjbhshkgu.
+  - OP service account token: 1Password item ID mz2pv43wg5qdl2qmkdghkuz7w4.
+  - Sudo password: 1Password item ID l77hcnkfqwyrm4qlyfauqliyuy.
+  - This script exports TAILSCALE_AUTHKEY, OP_SERVICE_ACCCOUNT_TOKEN,
+    and, when available, ANSIBLE_BECOME_PASS for playbook.yml.
 USAGE
 }
 
@@ -54,20 +69,81 @@ fetch_item_json() {
   printf '%s' "$item_json"
 }
 
+declare -A op_item_cache=()
+
+fetch_item_json_cached() {
+  local item_id="$1"
+  if [[ -z "${op_item_cache[$item_id]:-}" ]]; then
+    op_item_cache["$item_id"]="$(fetch_item_json "$item_id")"
+  fi
+  printf '%s' "${op_item_cache[$item_id]}"
+}
+
 ts_auth_key=""
+op_service_acccount_token=""
 become_password=""
 extra_args=()
 check_mode=false
 verbose=false
 
-extract_password() {
-  jq -r '
+extract_concealed_field() {
+  local label_regex="$1"
+  jq -r --arg re "$label_regex" '
     (.fields // []) as $fields
     | (
-        ($fields | map(select(.purpose == "PASSWORD")) | .[0].value)
+        ($fields
+          | map(select(.label | test($re; "i")))
+          | map(select((.type == "CONCEALED") or (.purpose == "PASSWORD")))
+          | .[0].value
+        )
+        // ($fields | map(select(.purpose == "PASSWORD")) | .[0].value)
         // ($fields | map(select(.type == "CONCEALED")) | .[0].value)
       ) // empty
   '
+}
+
+resolve_single_secret() {
+  local label="$1"
+  local arg_value="$2"
+  local env_name="$3"
+  local item_id="$4"
+  local label_regex="$5"
+  local missing_hint="$6"
+  local value=""
+
+  case "$source_mode" in
+    env)
+      value="${!env_name:-}"
+      [[ -n "$value" ]] || die "missing $label in environment ($env_name); remove --force-env or set $env_name"
+      ;;
+    1p)
+      require_op_jq
+      value="$(fetch_item_json_cached "$item_id" | extract_concealed_field "$label_regex")"
+      [[ -n "$value" ]] || die "could not find $label in 1Password item $item_id"
+      ;;
+    auto)
+      if [[ -n "$arg_value" ]]; then
+        value="$arg_value"
+      elif [[ -n "${!env_name:-}" ]]; then
+        value="${!env_name}"
+      else
+        require_op_jq
+        value="$(fetch_item_json_cached "$item_id" | extract_concealed_field "$label_regex")"
+        if [[ -z "$value" ]]; then
+          if [[ -n "$missing_hint" ]]; then
+            die "could not find $label in 1Password item $item_id; $missing_hint"
+          else
+            die "could not find $label in 1Password item $item_id; set $env_name"
+          fi
+        fi
+      fi
+      ;;
+    *)
+      die "unknown source mode: $source_mode"
+      ;;
+  esac
+
+  printf '%s' "$value"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -79,6 +155,27 @@ while [[ $# -gt 0 ]]; do
       ;;
     --ts-auth-key=*)
       ts_auth_key="${1#*=}"
+      shift
+      ;;
+    --op-service-account-token|--op-service-acccount-token)
+      [[ $# -ge 2 ]] || die "--op-service-account-token requires a value"
+      op_service_acccount_token="$2"
+      shift 2
+      ;;
+    --op-service-account-token=*|--op-service-acccount-token=*)
+      op_service_acccount_token="${1#*=}"
+      shift
+      ;;
+    --force-env)
+      force_env=true
+      shift
+      ;;
+    --force-1p)
+      force_1p=true
+      shift
+      ;;
+    --dry-run|--print-env)
+      print_env=true
       shift
       ;;
     --check)
@@ -105,41 +202,44 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$ts_auth_key" ]]; then
-  require_op_jq
-  ts_auth_key="$(fetch_item_json "$OP_TS_ITEM_ID" | jq -r '
-    (.fields // []) as $fields
-    | (
-        ($fields
-          | map(select(.label | test("tailscale|auth|key"; "i")))
-          | map(select((.type == "CONCEALED") or (.purpose == "PASSWORD")))
-          | .[0].value
-        )
-        // ($fields | map(select(.purpose == "PASSWORD")) | .[0].value)
-        // ($fields | map(select(.type == "CONCEALED")) | .[0].value)
-      ) // empty
-  ')"
-
-  [[ -n "$ts_auth_key" ]] || die "could not find a Tailscale auth key in 1Password item $OP_TS_ITEM_ID; pass --ts-auth-key"
+if [[ "$force_env" == "true" && "$force_1p" == "true" ]]; then
+  die "cannot combine --force-env and --force-1p"
 fi
 
-# Allow environment to provide sudo/become password.
-if [[ -z "$become_password" && -n "${ANSIBLE_BECOME_PASS:-}" ]]; then
-  become_password="$ANSIBLE_BECOME_PASS"
+if [[ "$force_env" == "true" ]]; then
+  source_mode="env"
+elif [[ "$force_1p" == "true" ]]; then
+  source_mode="1p"
 fi
 
-item_json=""
-if [[ -z "$become_password" ]]; then
-  require_op_jq
-  item_json="$(fetch_item_json "$OP_BECOME_ITEM_ID")"
-fi
+ts_auth_key="$(resolve_single_secret \
+  "Tailscale auth key" \
+  "$ts_auth_key" \
+  "TAILSCALE_AUTHKEY" \
+  "$OP_TS_ITEM_ID" \
+  "tailscale|auth|key" \
+  "pass --ts-auth-key or set TAILSCALE_AUTHKEY")"
 
-if [[ -z "$become_password" ]]; then
-  become_password="$(printf '%s' "$item_json" | extract_password)"
-  [[ -n "$become_password" ]] || die "could not find a become/sudo password in 1Password item $OP_BECOME_ITEM_ID; set ANSIBLE_BECOME_PASS"
-fi
+op_service_acccount_token="$(resolve_single_secret \
+  "OP service account token" \
+  "$op_service_acccount_token" \
+  "OP_SERVICE_ACCCOUNT_TOKEN" \
+  "$OP_SERVICE_ACCCOUNT_ITEM_ID" \
+  "service|account|token" \
+  "pass --op-service-account-token or set OP_SERVICE_ACCCOUNT_TOKEN")"
+
+become_password="$(resolve_single_secret \
+  "sudo password" \
+  "" \
+  "ANSIBLE_BECOME_PASS" \
+  "$OP_BECOME_ITEM_ID" \
+  "sudo|become|password|pass" \
+  "set ANSIBLE_BECOME_PASS")"
 
 env_vars=("TAILSCALE_AUTHKEY=$ts_auth_key")
+if [[ -n "$op_service_acccount_token" ]]; then
+  env_vars+=("OP_SERVICE_ACCCOUNT_TOKEN=$op_service_acccount_token")
+fi
 if [[ -n "$become_password" ]]; then
   env_vars+=("ANSIBLE_BECOME_PASS=$become_password")
 fi
@@ -155,5 +255,19 @@ if [[ "$verbose" == "true" ]]; then
   ansible_args+=(-vv)
 fi
 ansible_args+=("${extra_args[@]}")
+
+if [[ "$print_env" == "true" ]]; then
+  for pair in "${env_vars[@]}"; do
+    key="${pair%%=*}"
+    value="${pair#*=}"
+    printf 'export %s=%q\n' "$key" "$value"
+  done
+  printf 'ansible-playbook'
+  for arg in "${ansible_args[@]}"; do
+    printf ' %q' "$arg"
+  done
+  printf '\n'
+  exit 0
+fi
 
 env "${env_vars[@]}" ansible-playbook "${ansible_args[@]}"

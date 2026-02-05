@@ -98,6 +98,7 @@ base_packages:
 
 third_party_packages:
   - 1password
+  - 1password-cli
   - gh
   - google-chrome-stable
   - gum
@@ -152,7 +153,6 @@ apt_repos:
 brew_packages:
   - lazygit
   - tmuxinator
-  - 1password-cli
   - sqlite
   - obsidian-cli
   - steipete/tap/gogcli
@@ -171,6 +171,7 @@ env_vars:
   SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
   NODE_OPTIONS: "--disable-warning=DEP0040"
   PATH: "$HOME/.bun/bin:$PATH"
+  OP_SERVICE_ACCCOUNT_TOKEN: "{{ lookup('ansible.builtin.env', 'OP_SERVICE_ACCCOUNT_TOKEN') | default('', true) }}"
 
 snap_packages: []
 
