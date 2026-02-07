@@ -109,6 +109,10 @@ third_party_packages:
   - containerd.io
   - docker-buildx-plugin
   - docker-compose-plugin
+  - yt-dlp
+
+ppa_repos:
+  - ppa:tomtomtom/yt-dlp
 
 apt_repos:
   - name: 1password

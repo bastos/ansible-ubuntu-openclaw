@@ -27,6 +27,12 @@
         enabled: true
       loop: "{{ apt_repos }}"
 
+    - name: Add PPA repositories
+      ansible.builtin.apt_repository:
+        repo: "{{ item }}"
+        state: present
+      loop: "{{ ppa_repos }}"
+
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
