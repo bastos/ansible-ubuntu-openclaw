@@ -306,6 +306,25 @@
         PATH: "{{ target_user_home }}/.local/share/mise/shims:{{ target_user_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
       loop: "{{ npm_global_packages }}"
 
+    - name: Update openclaw to latest
+      become: true
+      become_user: "{{ target_user }}"
+      community.general.npm:
+        name: "openclaw@latest"
+        global: true
+        state: latest
+      environment:
+        PATH: "{{ target_user_home }}/.local/share/mise/shims:{{ target_user_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+      register: openclaw_update
+
+    - name: Restart openclaw gateway
+      become: true
+      become_user: "{{ target_user }}"
+      ansible.builtin.command: openclaw gateway restart
+      environment:
+        PATH: "{{ target_user_home }}/.local/share/mise/shims:{{ target_user_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+      when: openclaw_update.changed
+
     # -- Bun global packages ---
     - name: Install global Bun packages
       become: true
