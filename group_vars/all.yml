@@ -190,6 +190,7 @@ npm_global_packages:
   - "clawhub"
   - "@steipete/summarize"
   - "@beads/bd"
+  - "@mariozechner/pi-coding-agent"
 
 # Global Bun packages (names or URLs, e.g. https://github.com/tobi/qmd)
 bun_global_packages:
