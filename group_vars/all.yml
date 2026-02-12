@@ -95,6 +95,7 @@ base_packages:
   - libvips
   - topydo
   - libfuse2
+  - php-fpm
 
 third_party_packages:
   - 1password
@@ -110,6 +111,7 @@ third_party_packages:
   - docker-buildx-plugin
   - docker-compose-plugin
   - yt-dlp
+  - caddy
 
 ppa_repos:
   - ppa:tomtomtom/yt-dlp
@@ -146,6 +148,13 @@ apt_repos:
     components: [main]
     architectures: [amd64]
     signed_by: "https://dl-ssl.google.com/linux/linux_signing_key.pub"
+
+  - name: caddy
+    types: [deb]
+    uris: "https://dl.cloudsmith.io/public/caddy/stable/debian/any-any"
+    suites: [any]
+    components: [main]
+    signed_by: "https://dl.cloudsmith.io/public/caddy/stable/gpg.key"
 
   - name: charm
     types: [deb]
