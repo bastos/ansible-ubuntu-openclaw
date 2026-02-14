@@ -44,6 +44,7 @@ tailscale_operator_user: "{{ target_user }}"
 
 base_packages:
   - ca-certificates
+  - cron
   - curl
   - file
   - git
