@@ -407,6 +407,13 @@
         enabled: true
         state: started
 
+    - name: Setup local cron job
+      ansible.builtin.cron:
+        name: "hello world cron"
+        job: "echo 'hello world'"
+        minute: "*"
+        user: "{{ target_user }}"
+
     - name: Allow SSH from
       community.general.ufw:
         rule: allow
