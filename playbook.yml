@@ -366,6 +366,47 @@
           register: tailscale_up
           changed_when: "'Success' in tailscale_up.stdout or 'Success' in tailscale_up.stderr or tailscale_up.rc == 0"
 
+    - name: Caddy & PHP
+      block:
+        - name: Ensure Caddyfile configuration exists
+          ansible.builtin.copy:
+            dest: /etc/caddy/Caddyfile
+            content: |
+              :80 {
+                  root * /var/www/html
+                  php_fastcgi unix//run/php/php-fpm.sock
+                  file_server
+              }
+            mode: "0644"
+          notify: Restart Caddy
+
+        - name: Ensure web root exists
+          ansible.builtin.file:
+            path: /var/www/html
+            state: directory
+            owner: www-data
+            group: www-data
+            mode: "0755"
+
+        - name: Create hello world index.php
+          ansible.builtin.copy:
+            dest: /var/www/html/index.php
+            content: "<?php echo 'Hello World'; ?>"
+            owner: www-data
+            group: www-data
+            mode: "0644"
+
+        - name: Enable and start Caddy
+          ansible.builtin.systemd:
+            name: caddy
+            enabled: true
+            state: started
+
+        - name: Run tailscale serve
+          ansible.builtin.command: tailscale serve --bg 80
+          when: not ansible_check_mode
+          changed_when: false
+
     - name: Set Default Browser
       block:
         # CLI default (what /usr/bin/x-www-browser points to)
@@ -417,4 +458,8 @@
     - name: Restart SSH
       ansible.builtin.systemd:
         name: ssh
+        state: restarted
+    - name: Restart Caddy
+      ansible.builtin.systemd:
+        name: caddy
         state: restarted
