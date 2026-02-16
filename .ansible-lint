@@ -1,0 +1,14 @@
+# .ansible-lint configuration file
+# Ref: https://docs.ansible.com/projects/lint/rules/
+
+# List of skipped rules
+skip_list:
+  - command-instead-of-module # Allow curl/shell for specific installers
+  - risky-shell-pipe          # Ignore pipefail warnings for simple installs
+  - no-changed-when           # Ignore idempotency warnings for commands like restart/install
+  - no-handler                # Ignore suggestion to use handlers for simple commands
+  - args                      # Ignore complex/experimental module arguments
+
+# Set specific rule configurations
+exclude_paths:
+  - .github/workflows/
