@@ -1,5 +1,5 @@
 # .ansible-lint configuration file
-# Ref: https://ansible-lint.readthedocs.io/en/latest/default_rules.html
+# Ref: https://docs.ansible.com/projects/lint/rules/
 
 # List of skipped rules
 skip_list:
