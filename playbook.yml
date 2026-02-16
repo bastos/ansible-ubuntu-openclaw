@@ -455,6 +455,14 @@
         minute: "*"
         user: "{{ target_user }}"
 
+    - name: Ensure ~/Code directory exists
+      ansible.builtin.file:
+        path: "{{ target_user_home }}/Code"
+        state: directory
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0755"
+
     - name: Allow SSH from
       community.general.ufw:
         rule: allow
