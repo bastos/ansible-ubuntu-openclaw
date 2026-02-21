@@ -4,6 +4,7 @@ set -euo pipefail
 OP_TS_ITEM_ID="rawvqo5ow2jdbi5u2bjbhshkgu"
 OP_BECOME_ITEM_ID="l77hcnkfqwyrm4qlyfauqliyuy"
 OP_SERVICE_ACCCOUNT_ITEM_ID="mz2pv43wg5qdl2qmkdghkuz7w4"
+OP_OPENROUTER_ITEM_ID="n5pdttlocvil3ns5hortf5rweq"
 # Optional overrides; leave empty to use op defaults.
 OP_ACCOUNT="${OP_ACCOUNT:-}"
 OP_VAULT="${OP_VAULT:-}"
@@ -21,6 +22,8 @@ Options:
   --op-service-account-token <token>
                            1Password service account token (overrides 1Password lookup)
                            Alias: --op-service-acccount-token
+  --openrouter-api-key <key>
+                           OpenRouter API key (overrides 1Password lookup)
   --force-env             Force secrets from environment variables
   --force-1p              Force secrets from 1Password (ignores args/env)
   --dry-run, --print-env  Resolve secrets and print exports/command only
@@ -31,15 +34,16 @@ Options:
 Notes:
   - Default precedence: argument > environment > 1Password.
   - Env vars used: TAILSCALE_AUTHKEY, OP_SERVICE_ACCOUNT_TOKEN,
-    ANSIBLE_BECOME_PASS.
+    OPENROUTER_API_KEY, ANSIBLE_BECOME_PASS.
   - Use --force-env to require env vars and skip 1Password.
   - Use --force-1p to read all secrets from 1Password, ignoring args/env.
   - Use --dry-run/--print-env to show what would run without executing.
   - Tailscale auth key: 1Password item ID rawvqo5ow2jdbi5u2bjbhshkgu.
   - OP service account token: 1Password item ID mz2pv43wg5qdl2qmkdghkuz7w4.
+  - OpenRouter API key: 1Password item ID n5pdttlocvil3ns5hortf5rweq.
   - Sudo password: 1Password item ID l77hcnkfqwyrm4qlyfauqliyuy.
   - This script exports TAILSCALE_AUTHKEY, OP_SERVICE_ACCOUNT_TOKEN,
-    and, when available, ANSIBLE_BECOME_PASS for playbook.yml.
+    OPENROUTER_API_KEY, and, when available, ANSIBLE_BECOME_PASS for playbook.yml.
 USAGE
 }
 
@@ -81,6 +85,7 @@ fetch_item_json_cached() {
 
 ts_auth_key=""
 OP_SERVICE_ACCOUNT_TOKEN=""
+OPENROUTER_API_KEY=""
 become_password=""
 extra_args=()
 check_mode=false
@@ -166,6 +171,15 @@ while [[ $# -gt 0 ]]; do
       OP_SERVICE_ACCOUNT_TOKEN="${1#*=}"
       shift
       ;;
+    --openrouter-api-key)
+      [[ $# -ge 2 ]] || die "--openrouter-api-key requires a value"
+      OPENROUTER_API_KEY="$2"
+      shift 2
+      ;;
+    --openrouter-api-key=*)
+      OPENROUTER_API_KEY="${1#*=}"
+      shift
+      ;;
     --force-env)
       force_env=true
       shift
@@ -228,6 +242,14 @@ OP_SERVICE_ACCOUNT_TOKEN="$(resolve_single_secret \
   "service|account|token" \
   "pass --op-service-account-token or set OP_SERVICE_ACCOUNT_TOKEN")"
 
+OPENROUTER_API_KEY="$(resolve_single_secret \
+  "OpenRouter API key" \
+  "$OPENROUTER_API_KEY" \
+  "OPENROUTER_API_KEY" \
+  "$OP_OPENROUTER_ITEM_ID" \
+  "openrouter|api|key|token" \
+  "pass --openrouter-api-key or set OPENROUTER_API_KEY")"
+
 become_password="$(resolve_single_secret \
   "sudo password" \
   "" \
@@ -239,6 +261,9 @@ become_password="$(resolve_single_secret \
 env_vars=("TAILSCALE_AUTHKEY=$ts_auth_key")
 if [[ -n "$OP_SERVICE_ACCOUNT_TOKEN" ]]; then
   env_vars+=("OP_SERVICE_ACCOUNT_TOKEN=$OP_SERVICE_ACCOUNT_TOKEN")
+fi
+if [[ -n "$OPENROUTER_API_KEY" ]]; then
+  env_vars+=("OPENROUTER_API_KEY=$OPENROUTER_API_KEY")
 fi
 if [[ -n "$become_password" ]]; then
   env_vars+=("ANSIBLE_BECOME_PASS=$become_password")
