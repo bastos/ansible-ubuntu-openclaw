@@ -153,8 +153,8 @@ apt_repos:
 
   - name: caddy
     types: [deb]
-    uris: "https://dl.cloudsmith.io/public/caddy/stable/debian/any-any"
-    suites: [any]
+    uris: "https://dl.cloudsmith.io/public/caddy/stable/deb/debian"
+    suites: [any-version]
     components: [main]
     signed_by: "https://dl.cloudsmith.io/public/caddy/stable/gpg.key"
 

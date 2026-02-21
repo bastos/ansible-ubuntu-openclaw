@@ -5,6 +5,16 @@
   gather_facts: true
 
   tasks:
+    - name: Remove legacy APT source list files (superseded by deb822 sources)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/google-chrome.list
+        - /etc/apt/sources.list.d/caddy-stable.list
+        - /etc/apt/sources.list.d/caddy-testing.list
+        - /etc/apt/sources.list.d/caddy.list
+
     - name: Install prerequisites for repository setup
       ansible.builtin.apt:
         name:
@@ -12,7 +22,7 @@
           - curl
           - gnupg
         state: present
-        update_cache: true
+        update_cache: false
 
     - name: Configure APT repositories (deb822 format)
       ansible.builtin.deb822_repository:
